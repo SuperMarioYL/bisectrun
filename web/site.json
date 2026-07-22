@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "name": "bisectrun",
+  "github": "https://github.com/SuperMarioYL/bisectrun",
+  "host": "bisectrun.lei6393.com",
+  "lang": { "primary": "en", "toggle": true },
+  "accent": ["#4d9bff", "#34e5d0", "#8b7cf6"],
+  "hero": {
+    "eyebrow": {
+      "zh": "找出出错步骤 · 而非出错提交 · 为编码智能体而生",
+      "en": "Find the bad step · Not the bad commit · For coding agents"
+    },
+    "headline": {
+      "zh": "精准定位你的编码智能体在哪一步走偏",
+      "en": "Find exactly where your coding agent went wrong"
+    },
+    "sub": {
+      "zh": "将失败运行与同一任务的成功运行逐步对齐，精确定位两者分道扬镳的那一步。",
+      "en": "Line up your failed run against a passing run of the same task, step by step, and pinpoint the exact step where they parted ways."
+    },
+    "command": "npx bisect-run@latest failed-session.jsonl good-session.jsonl --ui"
+  },
+  "advantages": [
+    {
+      "title": {
+        "zh": "拖垮全局的那一步",
+        "en": "The one step that broke it"
+      },
+      "body": {
+        "zh": "别再肉眼比对几百个步骤。成功运行与失败运行首次分叉的那一步，几乎总是最该深究的——几秒内呈现在你面前。",
+        "en": "Stop scanning two hundred steps by eye. The first step where a passing run and a failing run parted ways is almost always the one worth staring at — and it's handed to you in seconds."
+      },
+      "chips": [
+        "› first divergence, not the whole diff",
+        "› matched steps shown up front",
+        "› seconds, not hours"
+      ]
+    },
+    {
+      "title": {
+        "zh": "绝不把两个不同任务拿来比对",
+        "en": "Never bisect two different tasks"
+      },
+      "body": {
+        "zh": "在对齐之前，先比对两次运行的工作目录、分支与原始请求——一旦指向不同任务的运行，立刻提醒你。",
+        "en": "Before any alignment, the working directory, branch, and original request of both runs are compared — so you're warned the instant you point it at runs that aren't the same task."
+      },
+      "chips": [
+        "› checks dir, branch & prompt first",
+        "› warns on cross-task runs",
+        "› no accidental wrong-pair compare"
+      ]
+    },
+    {
+      "title": {
+        "zh": "一眼看到分叉",
+        "en": "See the fork, instantly"
+      },
+      "body": {
+        "zh": "两次运行并排渲染，分叉处高亮——一眼看清分叉，无需在两份日志间来回对照。",
+        "en": "Both runs render next to each other, the divergence lit up — so a human sees the fork in one glance instead of cross-referencing two logs."
+      },
+      "chips": [
+        "› two runs, one screen",
+        "› divergence lit up",
+        "› local page, no upload"
+      ]
+    },
+    {
+      "title": {
+        "zh": "一条命令，无需安装",
+        "en": "One command. Nothing to install."
+      },
+      "body": {
+        "zh": "用 npx 指向两份会话记录，本地页面随即打开。无云端、无账号、无上传——你的智能体会话记录绝不离开本机。",
+        "en": "Point npx at two transcripts and a local page opens. No cloud, no account, no upload — your agent transcripts never leave your machine."
+      },
+      "chips": [
+        "› npx, no global install",
+        "› runs offline & local",
+        "› free & open source"
+      ]
+    }
+  ],
+  "scene": { "kind": "particle-field" }
+}

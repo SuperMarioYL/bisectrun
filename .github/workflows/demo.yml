@@ -1,0 +1,44 @@
+name: Demo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/demo.tape"
+      - ".github/workflows/demo.yml"
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Link binary
+        run: npm link
+
+      - name: Setup VHS
+        uses: charmbracelet/vhs-action@v2
+
+      - name: Render demo gif
+        run: vhs docs/demo.tape
+
+      - name: Commit demo gif
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/demo.gif || true
+          git commit -m "chore: render demo gif" || echo "nothing to commit"
+          git push || echo "push skipped"

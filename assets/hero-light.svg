@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 300" role="img" aria-labelledby="t d">
+  <title id="t">BisectRun — git-bisect for coding agents</title>
+  <desc id="d">Two agent span trees aligned side by side; the first divergence span glows.</desc>
+  <defs>
+    <linearGradient id="bgL" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7f9fc"/>
+      <stop offset="1" stop-color="#eaeef5"/>
+    </linearGradient>
+    <linearGradient id="okL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3fb950"/>
+      <stop offset="1" stop-color="#2da44e"/>
+    </linearGradient>
+    <linearGradient id="badL" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f85149"/>
+      <stop offset="1" stop-color="#da3633"/>
+    </linearGradient>
+    <radialGradient id="divL" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#f7c948" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#f7c948" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softL" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+  </defs>
+
+  <rect width="880" height="300" rx="20" fill="url(#bgL)"/>
+
+  <!-- wordmark -->
+  <text x="40" y="56" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif" font-size="30" font-weight="700" fill="#1f2328">BisectRun</text>
+  <text x="40" y="80" font-family="ui-sans-serif,system-ui,sans-serif" font-size="13" fill="#57606a">git-bisect, but for coding agents</text>
+
+  <!-- column headers -->
+  <text x="200" y="112" font-family="ui-monospace,monospace" font-size="12" font-weight="700" fill="#1f2328" text-anchor="middle">GOOD</text>
+  <text x="680" y="112" font-family="ui-monospace,monospace" font-size="12" font-weight="700" fill="#1f2328" text-anchor="middle">FAILED</text>
+
+  <!-- common-prefix bracket -->
+  <g stroke="#8b949e" stroke-width="1.5" fill="none" opacity="0.7">
+    <path d="M150 134 H820" stroke-dasharray="5 5">
+      <animate attributeName="stroke-dashoffset" from="0" to="-20" dur="1.2s" repeatCount="indefinite"/>
+    </path>
+  </g>
+  <text x="485" y="129" font-family="ui-monospace,monospace" font-size="10" fill="#6e7681" text-anchor="middle">common prefix</text>
+
+  <!-- span spine lines -->
+  <line x1="200" y1="140" x2="200" y2="270" stroke="#d0d7de" stroke-width="2"/>
+  <line x1="680" y1="140" x2="680" y2="270" stroke="#d0d7de" stroke-width="2"/>
+
+  <!-- GOOD nodes (all green) -->
+  <g font-family="ui-monospace,monospace" font-size="10" fill="#1f2328">
+    <circle cx="200" cy="150" r="9" fill="url(#okL)"/><text x="218" y="154">Bash: npm test</text>
+    <circle cx="200" cy="185" r="9" fill="url(#okL)"/><text x="218" y="189">Read: src/math.ts</text>
+    <circle cx="200" cy="220" r="9" fill="url(#okL)"/><text x="218" y="224">Edit: return a - b</text>
+    <circle cx="200" cy="255" r="9" fill="url(#okL)"/><text x="218" y="259">Bash: npm test</text>
+  </g>
+
+  <!-- FAILED nodes: 2 green, divergence amber, last red -->
+  <g font-family="ui-monospace,monospace" font-size="10" fill="#1f2328">
+    <circle cx="680" cy="150" r="9" fill="url(#okL)"/><text x="698" y="154">Bash: npm test</text>
+    <circle cx="680" cy="185" r="9" fill="url(#okL)"/><text x="698" y="189">Read: src/math.ts</text>
+  </g>
+
+  <!-- divergence node with pulsing halo -->
+  <circle cx="680" cy="220" r="26" fill="url(#divL)">
+    <animate attributeName="r" values="18;30;18" dur="1.6s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.9;0.25;0.9" dur="1.6s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="680" cy="220" r="10" fill="#f7c948" stroke="#9a6700" stroke-width="2"/>
+  <text x="698" y="224" font-family="ui-monospace,monospace" font-size="10" font-weight="700" fill="#9a6700">Edit: return a + b  ◀ first divergence</text>
+
+  <circle cx="680" cy="255" r="9" fill="url(#badL)"/><text x="698" y="259" font-family="ui-monospace,monospace" font-size="10" fill="#cf222e">Bash: npm test ✗</text>
+
+  <!-- match links between common-prefix nodes -->
+  <g stroke="#3fb950" stroke-width="1.4" fill="none" opacity="0.55">
+    <path d="M209 150 H671" stroke-dasharray="3 4"/>
+    <path d="M209 185 H671" stroke-dasharray="3 4"/>
+  </g>
+
+  <!-- sweeping bisect scan line -->
+  <g>
+    <rect x="150" y="140" width="600" height="2" fill="#1f6feb" opacity="0.5">
+      <animate attributeName="y" values="140;270;140" dur="3.2s" keyTimes="0;0.55;1" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;0.6;0.6;0" keyTimes="0;0.1;0.5;0.6" dur="3.2s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+</svg>

@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 240" role="img" aria-labelledby="at ad">
+  <title id="at">BisectRun architecture atlas</title>
+  <desc id="ad">Pipeline: parse two transcripts into span trees, align them, locate the first divergence.</desc>
+  <defs>
+    <linearGradient id="aBgD" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1117"/>
+      <stop offset="1" stop-color="#161b22"/>
+    </linearGradient>
+    <linearGradient id="boxD" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#21262d"/>
+      <stop offset="1" stop-color="#161b22"/>
+    </linearGradient>
+    <marker id="arrowD" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#6e7681"/>
+    </marker>
+    <radialGradient id="outD" cx="0.5" cy="0.5" r="0.6">
+      <stop offset="0" stop-color="#f7c948" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#f7c948" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="880" height="240" rx="16" fill="url(#aBgD)"/>
+  <text x="40" y="38" font-family="ui-sans-serif,system-ui,sans-serif" font-size="15" font-weight="700" fill="#f0f6fc">BisectRun pipeline</text>
+
+  <g font-family="ui-monospace,monospace" font-size="10" fill="#c9d1d9">
+    <rect x="40" y="70" width="150" height="26" rx="6" fill="#161b22" stroke="#30363d"/>
+    <text x="52" y="86">failed-session.jsonl</text>
+    <rect x="40" y="104" width="150" height="26" rx="6" fill="#161b22" stroke="#30363d"/>
+    <text x="52" y="120">good-session.jsonl</text>
+  </g>
+
+  <g stroke="#6e7681" stroke-width="1.6" fill="none" marker-end="url(#arrowD)">
+    <path d="M190 83 C220 83 220 116 250 116"/>
+    <path d="M190 117 C220 117 220 116 250 116"/>
+  </g>
+  <circle r="3" fill="#58a6ff">
+    <animateMotion dur="2.4s" repeatCount="indefinite" path="M190 83 C220 83 220 116 250 116"/>
+  </circle>
+  <circle r="3" fill="#3fb950">
+    <animateMotion dur="2.4s" begin="1.2s" repeatCount="indefinite" path="M190 117 C220 117 220 116 250 116"/>
+  </circle>
+
+  <g>
+    <rect x="250" y="86" width="150" height="60" rx="10" fill="url(#boxD)" stroke="#30363d" stroke-width="1.4"/>
+    <text x="325" y="112" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" font-weight="700" fill="#f0f6fc" text-anchor="middle">parse-jsonl</text>
+    <text x="325" y="128" font-family="ui-monospace,monospace" font-size="9" fill="#8b949e" text-anchor="middle">span tree + signature</text>
+  </g>
+
+  <line x1="400" y1="116" x2="430" y2="116" stroke="#6e7681" stroke-width="1.6" marker-end="url(#arrowD)"/>
+  <circle r="3" fill="#a371f7">
+    <animateMotion dur="2.4s" repeatCount="indefinite" path="M400 116 L430 116"/>
+  </circle>
+
+  <g>
+    <rect x="430" y="86" width="150" height="60" rx="10" fill="url(#boxD)" stroke="#30363d" stroke-width="1.4"/>
+    <text x="505" y="112" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" font-weight="700" fill="#f0f6fc" text-anchor="middle">align</text>
+    <text x="505" y="128" font-family="ui-monospace,monospace" font-size="9" fill="#8b949e" text-anchor="middle">span-semantic diff</text>
+  </g>
+
+  <line x1="580" y1="116" x2="610" y2="116" stroke="#6e7681" stroke-width="1.6" marker-end="url(#arrowD)"/>
+  <circle r="3" fill="#58a6ff">
+    <animateMotion dur="2.4s" repeatCount="indefinite" path="M580 116 L610 116"/>
+  </circle>
+
+  <g>
+    <rect x="610" y="84" width="160" height="64" rx="10" fill="url(#outD)">
+      <animate attributeName="opacity" values="0.5;0.12;0.5" dur="2s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="610" y="86" width="160" height="60" rx="10" fill="url(#boxD)" stroke="#e3b341" stroke-width="1.6"/>
+    <text x="690" y="112" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" font-weight="700" fill="#e3b341" text-anchor="middle">first divergence</text>
+    <text x="690" y="128" font-family="ui-monospace,monospace" font-size="9" fill="#8b949e" text-anchor="middle">stdout  ·  --ui server</text>
+  </g>
+
+  <g font-family="ui-monospace,monospace" font-size="9" fill="#8b949e">
+    <rect x="250" y="160" width="150" height="22" rx="6" fill="#161b22" stroke="#30363d"/>
+    <text x="325" y="174" text-anchor="middle">cwd · branch · prompt</text>
+  </g>
+  <line x1="325" y1="146" x2="325" y2="160" stroke="#6e7681" stroke-width="1.2" stroke-dasharray="2 3"/>
+
+  <text x="40" y="210" font-family="ui-sans-serif,system-ui,sans-serif" font-size="9" fill="#6e7681">two transcripts in · one divergent span out</text>
+</svg>

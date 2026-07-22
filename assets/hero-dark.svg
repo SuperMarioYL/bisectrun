@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 300" role="img" aria-labelledby="t d">
+  <title id="t">BisectRun — git-bisect for coding agents</title>
+  <desc id="d">Two agent span trees aligned side by side; the first divergence span glows.</desc>
+  <defs>
+    <linearGradient id="bgD" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1117"/>
+      <stop offset="1" stop-color="#161b22"/>
+    </linearGradient>
+    <linearGradient id="okD" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3fb950"/>
+      <stop offset="1" stop-color="#2da44e"/>
+    </linearGradient>
+    <linearGradient id="badD" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f85149"/>
+      <stop offset="1" stop-color="#da3633"/>
+    </linearGradient>
+    <radialGradient id="divD" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#f7c948" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#f7c948" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="880" height="300" rx="20" fill="url(#bgD)"/>
+
+  <text x="40" y="56" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif" font-size="30" font-weight="700" fill="#f0f6fc">BisectRun</text>
+  <text x="40" y="80" font-family="ui-sans-serif,system-ui,sans-serif" font-size="13" fill="#8b949e">git-bisect, but for coding agents</text>
+
+  <text x="200" y="112" font-family="ui-monospace,monospace" font-size="12" font-weight="700" fill="#c9d1d9" text-anchor="middle">GOOD</text>
+  <text x="680" y="112" font-family="ui-monospace,monospace" font-size="12" font-weight="700" fill="#c9d1d9" text-anchor="middle">FAILED</text>
+
+  <g stroke="#6e7681" stroke-width="1.5" fill="none" opacity="0.7">
+    <path d="M150 134 H820" stroke-dasharray="5 5">
+      <animate attributeName="stroke-dashoffset" from="0" to="-20" dur="1.2s" repeatCount="indefinite"/>
+    </path>
+  </g>
+  <text x="485" y="129" font-family="ui-monospace,monospace" font-size="10" fill="#8b949e" text-anchor="middle">common prefix</text>
+
+  <line x1="200" y1="140" x2="200" y2="270" stroke="#30363d" stroke-width="2"/>
+  <line x1="680" y1="140" x2="680" y2="270" stroke="#30363d" stroke-width="2"/>
+
+  <g font-family="ui-monospace,monospace" font-size="10" fill="#c9d1d9">
+    <circle cx="200" cy="150" r="9" fill="url(#okD)"/><text x="218" y="154">Bash: npm test</text>
+    <circle cx="200" cy="185" r="9" fill="url(#okD)"/><text x="218" y="189">Read: src/math.ts</text>
+    <circle cx="200" cy="220" r="9" fill="url(#okD)"/><text x="218" y="224">Edit: return a - b</text>
+    <circle cx="200" cy="255" r="9" fill="url(#okD)"/><text x="218" y="259">Bash: npm test</text>
+  </g>
+
+  <g font-family="ui-monospace,monospace" font-size="10" fill="#c9d1d9">
+    <circle cx="680" cy="150" r="9" fill="url(#okD)"/><text x="698" y="154">Bash: npm test</text>
+    <circle cx="680" cy="185" r="9" fill="url(#okD)"/><text x="698" y="189">Read: src/math.ts</text>
+  </g>
+
+  <circle cx="680" cy="220" r="26" fill="url(#divD)">
+    <animate attributeName="r" values="18;30;18" dur="1.6s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.95;0.25;0.95" dur="1.6s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="680" cy="220" r="10" fill="#f7c948" stroke="#e3b341" stroke-width="2"/>
+  <text x="698" y="224" font-family="ui-monospace,monospace" font-size="10" font-weight="700" fill="#e3b341">Edit: return a + b  ◀ first divergence</text>
+
+  <circle cx="680" cy="255" r="9" fill="url(#badD)"/><text x="698" y="259" font-family="ui-monospace,monospace" font-size="10" fill="#ff7b72">Bash: npm test ✗</text>
+
+  <g stroke="#3fb950" stroke-width="1.4" fill="none" opacity="0.5">
+    <path d="M209 150 H671" stroke-dasharray="3 4"/>
+    <path d="M209 185 H671" stroke-dasharray="3 4"/>
+  </g>
+
+  <g>
+    <rect x="150" y="140" width="600" height="2" fill="#58a6ff" opacity="0.5">
+      <animate attributeName="y" values="140;270;140" dur="3.2s" keyTimes="0;0.55;1" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;0.6;0.6;0" keyTimes="0;0.1;0.5;0.6" dur="3.2s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+</svg>

@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Builder metadata
+.builder_*
+.build_metadata*
+BUILD_SETUP_NEXT_STEPS.md
+
+# Spawn / runtime artifacts
+.spawn.*

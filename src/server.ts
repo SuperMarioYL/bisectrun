@@ -130,7 +130,7 @@ function page(result: AlignmentResult, bundle: ServerBundle): string {
     </section>
   </main>
   <footer>
-    BisectRun v0.1.0 — span-semantic bisect for coding agents ·
+    BisectRun v0.2.0 — span-semantic bisect for coding agents ·
     <code>${escapeHtml(JSON.stringify(payload).slice(0, 0))}</code>
   </footer>
   <script id="result" type="application/json">${escapeHtml(JSON.stringify(payload))}</script>
@@ -158,7 +158,17 @@ export function createApp(result: AlignmentResult, bundle: ServerBundle): Hono {
 
 export function startServer(result: AlignmentResult, bundle: ServerBundle, opts: { port: number }): void {
   const app = createApp(result, bundle);
-  serve({ fetch: app.fetch, port: opts.port }, (info) => {
+  const server = serve({ fetch: app.fetch, port: opts.port }, (info) => {
     console.log(`BisectRun UI → http://localhost:${info.port}`);
+  });
+  // The vendored `serve` returns a Node `http.Server` with no `error` listener
+  // attached. Without this, a listen failure (EADDRINUSE when `--ui` is run a
+  // second time while the first server is still bound; EACCES on a privileged
+  // port) surfaces as an `uncaughtException` with a raw `Error: listen ...` stack
+  // that the try/catch in cli.ts cannot reach — the event fires asynchronously
+  // after `serve` returns. Capture it here for a clean, one-line exit.
+  server.on("error", (err: Error) => {
+    console.error(`bisect-run: UI server failed to start — ${err.message}`);
+    process.exit(1);
   });
 }

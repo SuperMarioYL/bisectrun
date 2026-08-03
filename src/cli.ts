@@ -13,7 +13,9 @@ import { Command } from "commander";
 import { parseJsonlFile } from "./parse-jsonl.js";
 import { align } from "./align.js";
 import { startServer } from "./server.js";
+import { resolveReference } from "./autocapture.js";
 import type { AlignmentResult } from "./types.js";
+import type { ParsedRun } from "./parse-jsonl.js";
 
 const program = new Command();
 
@@ -21,15 +23,31 @@ program
   .name("bisect-run")
   .description("git-bisect for coding agents — locate the first divergent span between two agent runs.")
   .argument("<failed>", "path (or ~/.claude-project id) to the failing session transcript")
-  .argument("<good>", "path (or ~/.claude-project id) to the passing session transcript")
+  .argument(
+    "[good]",
+    "path (or ~/.claude-project id) to the passing session transcript; if omitted, auto-resolved from ~/.bisect-run/refs",
+  )
   .option("--ui", "start the web diff UI instead of printing to stdout")
   .option("-p, --port <number>", "port for the web UI", "7331")
   .option("--no-color", "disable ANSI color in headless output")
-  .version("0.1.0")
-  .action((failed: string, good: string, opts: { ui: boolean; port: string; color: boolean }) => {
+  .version("0.2.0")
+  .action((failed: string, good: string | undefined, opts: { ui: boolean; port: string; color: boolean }) => {
     try {
       const failedRun = parseJsonlFile(failed);
-      const goodRun = parseJsonlFile(good);
+      let goodRun: ParsedRun;
+      if (good) {
+        goodRun = parseJsonlFile(good);
+      } else {
+        // Auto-resolve a reference run for this task signature, capturing
+        // from ~/.claude/projects/<sanitized-cwd>/ if no cached ref exists.
+        const ref = resolveReference(failedRun);
+        if (!ref.ok || !ref.referencePath) {
+          console.error(`bisect-run: ${ref.reason}`);
+          process.exit(1);
+        }
+        console.error(`bisect-run: ${ref.reason}`);
+        goodRun = parseJsonlFile(ref.referencePath);
+      }
       const result = align(failedRun, goodRun);
 
       if (opts.ui) {

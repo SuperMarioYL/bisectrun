@@ -4,6 +4,7 @@ import {
   mkdtempSync,
   mkdirSync,
   writeFileSync,
+  symlinkSync,
   existsSync,
   readFileSync,
   rmSync,
@@ -115,4 +116,25 @@ test("resolveReference returns a clear hint naming the refs store when nothing r
   assert.equal(result.referencePath, null);
   assert.match(result.reason, /could not auto-resolve/i);
   assert.match(result.reason, /\.bisect-run/);
+});
+
+// fix-autocapture-scan-skip-bad-entries — a single unreadable entry (broken
+// symlink) in the project dir must be skipped, not abort the whole scan.
+test("resolveReference tolerates an unreadable (broken-symlink) entry in the project dir", () => {
+  const home = makeHome();
+  const cwd = failedRun.signature.cwd;
+  const dir = join(home, ".claude", "projects", sanitizeCwd(cwd));
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "sess-good.jsonl"), goodText);
+  // A broken symlink — statSync throws ENOENT, must not abort the scan.
+  symlinkSync(join(dir, "does-not-exist.jsonl"), join(dir, "broken-link.jsonl"));
+
+  const result = resolveReference(failedRun, home);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.referencePath, refPath(failedRun.signature, home));
+  assert.equal(existsSync(result.referencePath), true);
+  // The good transcript is still resolved byte-for-byte despite the bad entry.
+  assert.equal(readFileSync(result.referencePath, "utf8"), goodText);
+  assert.match(result.reason, /captured/);
 });

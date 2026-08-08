@@ -97,7 +97,20 @@ function resultText(content: unknown): string {
 export function parseJsonlFile(filePath: string): ParsedRun {
   const abs = resolveInput(filePath);
   const text = readFileSync(abs, "utf8");
-  return parseJsonlText(text);
+  const run = parseJsonlText(text);
+  // Fail loudly when the input was non-empty but the whole file parsed to
+  // zero spans — a total parse failure (the common "pointed at the wrong /
+  // corrupted / non-JSONL file" error) must not masquerade as an empty run
+  // that align() then reports as a clean "no divergence" result (the
+  // opposite of what this tool is for). Per-line tolerance for partial
+  // transcript tails is kept intact inside parseJsonlText; we only fail
+  // when the WHOLE file yielded nothing. (fix-silent-success-on-unparseable-transcript)
+  if (run.signature.spanCount === 0 && text.trim().length > 0) {
+    throw new Error(
+      `no parseable transcript records in ${abs} — not a Claude Code session JSONL?`,
+    );
+  }
+  return run;
 }
 
 /** Parse transcript text (JSONL) into a {@link ParsedRun}. */

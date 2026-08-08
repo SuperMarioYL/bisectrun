@@ -110,8 +110,17 @@ export function resolveReference(failedRun: ParsedRun, home: string = homedir())
     .filter((f) => f.endsWith(".jsonl"))
     .map((f) => {
       const path = join(projectDir, f);
-      return { path, mtime: statSync(path).mtimeMs };
+      try {
+        return { path, mtime: statSync(path).mtimeMs };
+      } catch {
+        // Tolerate unreadable entries (broken symlinks, EACCES, files deleted
+        // between readdir and stat) instead of letting one bad entry abort
+        // the entire scan — consistent with the parse-level skip in the loop
+        // below. (fix-autocapture-scan-skip-bad-entries)
+        return null;
+      }
     })
+    .filter((c): c is { path: string; mtime: number } => c !== null)
     .sort((a, b) => b.mtime - a.mtime);
 
   for (const c of candidates) {

@@ -30,7 +30,7 @@ program
   .option("--ui", "start the web diff UI instead of printing to stdout")
   .option("-p, --port <number>", "port for the web UI", "7331")
   .option("--no-color", "disable ANSI color in headless output")
-  .version("0.2.0")
+  .version("0.3.0")
   .action((failed: string, good: string | undefined, opts: { ui: boolean; port: string; color: boolean }) => {
     try {
       const failedRun = parseJsonlFile(failed);

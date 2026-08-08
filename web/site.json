@@ -15,8 +15,8 @@
       "en": "Hand it the failed run\nit finds the last one that worked"
     },
     "sub": {
-      "zh": "从你的 Claude Code 会话历史里，自动挑出同一任务最近一次干净跑完的运行，把两次运行逐步对齐，精准定位两者分道扬镳的那一步。",
-      "en": "It scans your Claude Code session history for the most recent clean run of the same task, lines the two runs up step by step, and pinpoints the exact step where they parted ways."
+      "zh": "从你的 Claude Code 会话历史里，自动挑出同一任务最近一次干净跑完的运行，把两次运行逐步对齐，精准定位两者分道扬镳的那一步——指向的不是会话文件时，也会明说，而不是假装没有分歧。",
+      "en": "It scans your Claude Code session history for the most recent clean run of the same task, lines the two runs up step by step, and pinpoints the exact step where they parted ways — and if you hand it something that isn't a session, it says so instead of a false \"no divergence\"."
     },
     "command": "npx bisect-run@latest failed-session.jsonl --ui"
   },
@@ -27,13 +27,14 @@
         "en": "No more digging up the run that worked"
       },
       "body": {
-        "zh": "省掉手动满世界找那份对照运行：按你的任务——工作目录、分支、原始请求——从 Claude Code 会话历史里自动挑出最近一次干净跑完的运行，缓存好，下次同一任务直接复用。只丢一份失败记录就能开跑。",
-        "en": "Skip the manual hunt for the run to compare against: it auto-picks the most recent clean run of your task — by working directory, branch and original request — from your Claude Code session history, caches it, and reuses it next time the same task comes up. Hand it just the failed run and go."
+        "zh": "省掉手动满世界找那份对照运行：按你的任务——工作目录、分支、原始请求——从 Claude Code 会话历史里自动挑出最近一次干净跑完的运行，缓存好，下次同一任务直接复用。只丢一份失败记录就能开跑；会话目录里有个坏文件或读不动的那条，也不影响自动找回——跳过它继续扫。",
+        "en": "Skip the manual hunt for the run to compare against: it auto-picks the most recent clean run of your task — by working directory, branch and original request — from your Claude Code session history, caches it, and reuses it next time the same task comes up. Hand it just the failed run and go; a broken or unreadable file sitting in the history won't abort the auto-resolve either — it's skipped, not fatal."
       },
       "chips": [
         "› 按任务自动挑参照",
         "› 缓存复用 · 同任务零成本",
-        "› 找不到就清楚告诉你"
+        "› 找不到就清楚告诉你",
+        "› 坏文件不中断自动找回"
       ]
     },
     {
@@ -42,13 +43,14 @@
         "en": "The one step that broke it"
       },
       "body": {
-        "zh": "别再肉眼比对几百个步骤。成功运行与失败运行首次分叉的那一步，几乎总是最该深究的——几秒内呈现在你面前。",
-        "en": "Stop scanning two hundred steps by eye. The first step where a passing run and a failing run parted ways is almost always the one worth staring at — and it's handed to you in seconds."
+        "zh": "别再肉眼比对几百个步骤。成功运行与失败运行首次分叉的那一步，几乎总是最该深究的——几秒内呈现在你面前。指向的不是会话文件时，它会明确告诉你，而不是甩给你一句假装没有分歧的空结果。",
+        "en": "Stop scanning two hundred steps by eye. The first step where a passing run and a failing run parted ways is almost always the one worth staring at — and it's handed to you in seconds. Point it at a file that isn't a session and it tells you so, instead of handing back a silent empty \"no divergence\" result."
       },
       "chips": [
         "› 首次分叉 · 不是整段 diff",
         "› 匹配步数前置可见",
-        "› 几秒 · 不是几小时"
+        "› 几秒 · 不是几小时",
+        "› 指错文件会明说，不假装没分歧"
       ]
     },
     {

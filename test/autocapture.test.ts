@@ -5,6 +5,7 @@ import {
   mkdirSync,
   writeFileSync,
   symlinkSync,
+  chmodSync,
   existsSync,
   readFileSync,
   rmSync,
@@ -137,4 +138,89 @@ test("resolveReference tolerates an unreadable (broken-symlink) entry in the pro
   // The good transcript is still resolved byte-for-byte despite the bad entry.
   assert.equal(readFileSync(result.referencePath, "utf8"), goodText);
   assert.match(result.reason, /captured/);
+});
+
+// fix-isSuccessfulRun-incomplete-run — an interrupted/incomplete run (a span
+// with NO tool_result attached because the session ended before the result came
+// back) must NOT be classified as a successful reference. Before the fix,
+// optional chaining (tool_result?.is_error) yielded undefined (falsy) for the
+// missing result, so the interrupted run passed the success check and was
+// auto-picked as the "good" baseline — producing a wrong core bisection
+// result (a length-mismatch masquerading the interruption as an extra failed
+// step).
+//
+// Same task signature as the failed fixture, no errored spans, but the final
+// tool_use has NO matching tool_result record.
+const interruptedText = [
+  '{"parentUuid":null,"uuid":"u1-i","type":"user","message":{"role":"user","content":[{"type":"text","text":"Fix the failing test in src/math.ts"}]},"timestamp":"2026-07-22T08:00:00.000Z","cwd":"/home/alice/myapp","gitBranch":"main"}',
+  '{"parentUuid":"u1-i","uuid":"a1-i","type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Let me run the tests first."},{"type":"tool_use","id":"toolu_i1","name":"Bash","input":{"command":"npm test"}}]},"timestamp":"2026-07-22T08:00:05.000Z","cwd":"/home/alice/myapp","gitBranch":"main"}',
+  '{"parentUuid":"a1-i","uuid":"u2-i","type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_i1","content":"PASS src/math.test.ts","is_error":false}]},"timestamp":"2026-07-22T08:00:09.000Z","cwd":"/home/alice/myapp","gitBranch":"main"}',
+  '{"parentUuid":"u2-i","uuid":"a3-i","type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Locking it in."},{"type":"tool_use","id":"toolu_i2","name":"Edit","input":{"file_path":"src/math.ts","old_string":"  return a - b;","new_string":"  return a - b;"}}]},"timestamp":"2026-07-22T08:00:12.000Z","cwd":"/home/alice/myapp","gitBranch":"main"}',
+].join("\n");
+
+test("isSuccessfulRun rejects an interrupted/incomplete run (a span with no tool_result)", () => {
+  const interrupted = parseJsonlText(interruptedText);
+  assert.equal(interrupted.spans.length, 2);
+  // The first span completed (its tool_use has a matching tool_result record).
+  assert.notEqual(interrupted.spans[0].tool_result, undefined);
+  assert.equal(interrupted.spans[0].tool_result?.is_error, false);
+  // The second span's tool_use has NO matching tool_result record — the run
+  // was interrupted before the Edit result came back.
+  assert.equal(interrupted.spans[1].tool_result, undefined);
+  // Before the fix this returned true (optional chaining hid the missing
+  // result); it must now return false so incomplete runs are never cached as
+  // the reference baseline.
+  assert.equal(isSuccessfulRun(interrupted), false);
+});
+
+test("resolveReference does not pick an interrupted run as the reference baseline", () => {
+  const home = makeHome();
+  // Seed ONLY the interrupted transcript — same task signature as the failed
+  // run, no errored spans, but incomplete (a span with no tool_result). Before
+  // the fix this was auto-picked as the "good" reference via the default
+  // auto-resolve happy path; it must now be rejected as not successful.
+  seedProject(home, failedRun.signature.cwd, [{ uuid: "sess-interrupted", text: interruptedText }]);
+
+  const result = resolveReference(failedRun, home);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.referencePath, null);
+  assert.match(result.reason, /no successful matching transcript/i);
+});
+
+// fix-autocapture-swallow-refs-write — a refs-store write failure (EACCES on
+// ~/.bisect-run/refs) must NOT be swallowed as a "malformed transcript" skip
+// that falls through to the misleading "no successful matching transcript
+// found" message. The matched good run is still resolved via the uncached
+// source candidate path (the cache is an optimization, not a requirement),
+// with a clear message naming the store and the write failure.
+test("resolveReference surfaces a refs-store write failure instead of swallowing it (uncached fallback)", () => {
+  const home = makeHome();
+  const cwd = failedRun.signature.cwd;
+  seedProject(home, cwd, [{ uuid: "sess-good", text: goodText }]);
+
+  // Pre-create the refs store as a read-only directory so copyFileSync throws
+  // EACCES. mkdirSync(recursive) is idempotent on an existing dir (no throw),
+  // so the failure lands on copyFileSync — exactly the swallowed write path
+  // the fix targets.
+  const store = join(home, ".bisect-run", "refs");
+  mkdirSync(store, { recursive: true });
+  chmodSync(store, 0o500);
+
+  let result;
+  try {
+    result = resolveReference(failedRun, home);
+  } finally {
+    chmodSync(store, 0o700); // restore so the temp home can be removed
+  }
+
+  // The good run WAS found — it must not be reported as missing.
+  assert.equal(result.ok, true);
+  // Falls back to the uncached source candidate path (cache is optional).
+  assert.equal(
+    result.referencePath,
+    join(home, ".claude", "projects", sanitizeCwd(cwd), "sess-good.jsonl"),
+  );
+  assert.match(result.reason, /could not cache/i);
+  assert.match(result.reason, /\.bisect-run/);
 });

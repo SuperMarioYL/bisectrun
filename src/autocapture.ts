@@ -58,13 +58,22 @@ export function refPath(sig: RunSignature, home: string = homedir()): string {
 
 /**
  * Heuristic: is this parsed run a usable *successful* reference?
- * True when the run produced at least one span and no tool_result was an
- * error. This is intentionally a heuristic, not proven success.
+ * True when the run produced at least one span, every span actually has a
+ * tool_result attached (a completed run has results for all of its tool_use
+ * blocks — a span with no tool_result means the session was interrupted before
+ * that result came back), and no tool_result was an error. This is
+ * intentionally a heuristic, not proven success.
  */
 export function isSuccessfulRun(run: ParsedRun): boolean {
   if (run.spans.length === 0) return false;
   for (const span of run.spans) {
-    if (span.tool_result?.is_error) return false;
+    // A span with no tool_result attached means the session ended before that
+    // tool's result came back — the run is incomplete and must not be cached
+    // as a successful reference baseline. The parse path attaches tool_result
+    // by tool_use_id across ALL records, so tool_result === undefined after
+    // parsing reliably means no result record exists. (fix-isSuccessfulRun-incomplete-run)
+    if (span.tool_result === undefined) return false;
+    if (span.tool_result.is_error) return false;
   }
   return true;
 }
@@ -124,14 +133,29 @@ export function resolveReference(failedRun: ParsedRun, home: string = homedir())
     .sort((a, b) => b.mtime - a.mtime);
 
   for (const c of candidates) {
+    let run: ParsedRun;
     try {
-      const run = parseJsonlFile(c.path);
-      if (run.spans.length === 0) continue;
-      // Exclude the failed run itself (it may live in the same project dir).
-      if (run.spans.some((s) => failedIds.has(s.id))) continue;
-      if (!isSuccessfulRun(run)) continue;
-      if (!signaturesMatch(sig, run.signature)) continue;
+      run = parseJsonlFile(c.path);
+    } catch {
+      // Skip unreadable / malformed transcripts — mirrors parseJsonlText's
+      // tolerance for partial tails.
+      continue;
+    }
+    if (run.spans.length === 0) continue;
+    // Exclude the failed run itself (it may live in the same project dir).
+    if (run.spans.some((s) => failedIds.has(s.id))) continue;
+    if (!isSuccessfulRun(run)) continue;
+    if (!signaturesMatch(sig, run.signature)) continue;
 
+    // Cache the matched reference transcript into ~/.bisect-run/refs/. The
+    // cache is an optimization (it avoids re-scanning on the next invocation),
+    // NOT a requirement — so a write failure (ENOSPC disk full, EACCES on the
+    // refs store, EROFS read-only home) must NOT be swallowed as a "malformed
+    // transcript" skip and must NOT fall through to the misleading "no
+    // successful matching transcript found" message. Instead, surface the
+    // write failure clearly and fall back to the uncached source candidate
+    // path so the good run is still resolved. (fix-autocapture-swallow-refs-write)
+    try {
       mkdirSync(refsDir(home), { recursive: true });
       copyFileSync(c.path, ref);
       return {
@@ -139,9 +163,15 @@ export function resolveReference(failedRun: ParsedRun, home: string = homedir())
         referencePath: ref,
         reason: `reference captured from ${c.path}`,
       };
-    } catch {
-      // Skip unreadable / malformed transcripts — mirrors parseJsonlText's
-      // tolerance for partial tails.
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      return {
+        ok: true,
+        referencePath: c.path,
+        reason:
+          `matched reference at ${c.path} but could not cache to ${refsDir(home)}: ` +
+          `${detail} (using uncached source)`,
+      };
     }
   }
 

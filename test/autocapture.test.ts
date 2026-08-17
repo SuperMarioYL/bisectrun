@@ -18,6 +18,7 @@ import {
   resolveReference,
   isSuccessfulRun,
   refPath,
+  refsDir,
   signatureHash,
 } from "../src/autocapture.js";
 
@@ -223,4 +224,69 @@ test("resolveReference surfaces a refs-store write failure instead of swallowing
   );
   assert.match(result.reason, /could not cache/i);
   assert.match(result.reason, /\.bisect-run/);
+});
+
+// fix-autocapture-readdirsync-uncaught — an unreadable project dir (EACCES —
+// real on a shared/restricted $HOME, a CI runner, or a dir with perms 0o000;
+// or ENOTDIR when replaced by a file) must NOT crash with a raw
+// "EACCES: permission denied, scandir '...'" error. Before the fix
+// readdirSync(projectDir) — the call that populates the candidate list —
+// was OUTSIDE any try/catch (only the per-entry statSync was wrapped), so a
+// permission failure threw uncaught out of resolveReference and cli.ts's
+// outer try/catch printed a raw error and exited 1, bypassing the friendly
+// unresolved(...) hint. The fix wraps readdirSync and returns the actionable
+// "could not auto-resolve ... Pass a good-session.jsonl explicitly" hint
+// instead, completing the v0.3.0 fix's end-to-end tolerance goal.
+test("resolveReference returns a clear hint (not a raw throw) when the project dir is unreadable", () => {
+  const home = makeHome();
+  const cwd = failedRun.signature.cwd;
+  const dir = join(home, ".claude", "projects", sanitizeCwd(cwd));
+  mkdirSync(dir, { recursive: true });
+  // Seed a good transcript under the dir so the ONLY failure mode is the
+  // readdir EACCES — the scan would otherwise resolve the good run.
+  writeFileSync(join(dir, "sess-good.jsonl"), goodText);
+  chmodSync(dir, 0o000); // unreadable — readdirSync throws EACCES
+
+  let result;
+  try {
+    // Before the fix this call threw EACCES uncaught (the test would error
+    // out); after the fix it returns the friendly unresolved(...) hint.
+    result = resolveReference(failedRun, home);
+  } finally {
+    chmodSync(dir, 0o700); // restore so the temp home can be removed
+  }
+
+  assert.equal(result.ok, false);
+  assert.equal(result.referencePath, null);
+  assert.match(result.reason, /could not auto-resolve/i);
+  assert.match(result.reason, /could not read Claude Code project directory/i);
+});
+
+// fix-autocapture-corrupt-cache-no-selfheal — a corrupt refs cache (partial
+// ENOSPC write, manual edit, disk corruption) must NOT stick the
+// auto-resolve path. Before the fix the cache-hit path returned the corrupt
+// cache path with NO validation, so cli.ts's parseJsonlFile(ref) threw "no
+// parseable transcript records" on EVERY subsequent invocation — a
+// misleading error pointing at a file the user never named, with no hint to
+// delete ~/.bisect-run/refs/<sig>.jsonl. The fix parse-validates the cache
+// on hit, deletes the corrupt file (rmSync force), and falls through to the
+// normal scan so the headline m3 feature self-heals.
+test("resolveReference self-heals a corrupt refs cache (re-scans and returns ok)", () => {
+  const home = makeHome();
+  seedProject(home, failedRun.signature.cwd, [{ uuid: "sess-good", text: goodText }]);
+
+  // Pre-seed a corrupt cache at the ref path — a truncated/partial file
+  // that parseJsonlFile throws on ("no parseable transcript records").
+  const ref = refPath(failedRun.signature, home);
+  mkdirSync(refsDir(home), { recursive: true });
+  writeFileSync(ref, "this is not a valid jsonl transcript\n");
+
+  const result = resolveReference(failedRun, home);
+
+  assert.equal(result.ok, true);
+  // The corrupt cache was deleted and re-captured from the good source.
+  assert.equal(result.referencePath, ref);
+  assert.equal(existsSync(ref), true);
+  assert.equal(readFileSync(ref, "utf8"), goodText);
+  assert.match(result.reason, /captured/);
 });

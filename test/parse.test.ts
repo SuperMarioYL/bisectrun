@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { parseJsonlText, parseJsonlFile, flatten } from "../src/parse-jsonl.js";
+import { align } from "../src/align.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const failedText = readFileSync(join(here, "fixtures/failed-session.jsonl"), "utf8");
@@ -77,6 +78,40 @@ test("parseJsonlFile does NOT throw on an empty/whitespace-only file (only non-e
   try {
     const run = parseJsonlFile(tmp);
     assert.equal(run.signature.spanCount, 0);
+  } finally {
+    rmSync(tmp, { force: true });
+  }
+});
+
+// fix-parsejsonlfile-spans-vs-records — a valid Claude Code transcript where
+// the agent only chatted (no tool_use blocks) parses cleanly (recordCount > 0)
+// yet yields spanCount === 0. Before the fix the v0.3.0 guard gated on
+// spanCount, so it threw "not a Claude Code session JSONL?" for a legitimate
+// chat-only transcript — sending the user down the wrong diagnostic path
+// (re-checking file format instead of noticing there are no tool_use blocks
+// to bisect). The fix gates on recordCount (parsed JSON lines) instead, so a
+// chat-only transcript no longer throws and align() reports no divergence.
+test("parseJsonlFile does NOT throw on a chat-only transcript (records present, zero spans)", () => {
+  // Same task signature as the failed fixture, but the assistant only emits
+  // text — no tool_use blocks, so the run has records but zero spans.
+  const chatOnlyText = [
+    '{"parentUuid":null,"uuid":"u1-c","type":"user","message":{"role":"user","content":[{"type":"text","text":"Fix the failing test in src/math.ts"}]},"timestamp":"2026-07-22T09:00:00.000Z","cwd":"/home/alice/myapp","gitBranch":"main"}',
+    '{"parentUuid":"u1-c","uuid":"a1-c","type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Let me think about this approach."}]},"timestamp":"2026-07-22T09:00:05.000Z","cwd":"/home/alice/myapp","gitBranch":"main"}',
+  ].join("\n");
+  const tmp = join(tmpdir(), `bisect-run-chatonly-${process.pid}-${Date.now()}.jsonl`);
+  writeFileSync(tmp, chatOnlyText);
+  try {
+    // Before the fix this threw "no parseable transcript records ... — not a
+    // Claude Code session JSONL?" (spanCount === 0). After the fix it parses
+    // cleanly because recordCount === 2 (two valid JSON lines).
+    const run = parseJsonlFile(tmp);
+    assert.equal(run.recordCount, 2);
+    assert.equal(run.signature.spanCount, 0);
+    // A legitimate (if boring) chat-only transcript aligns against itself
+    // with no divergence — it is NOT "not a Claude Code session JSONL?".
+    const result = align(run, run);
+    assert.equal(result.firstDivergence, null);
+    assert.match(result.reason, /no divergence/i);
   } finally {
     rmSync(tmp, { force: true });
   }

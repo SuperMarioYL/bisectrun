@@ -30,38 +30,67 @@ program
   .option("--ui", "start the web diff UI instead of printing to stdout")
   .option("-p, --port <number>", "port for the web UI", "7331")
   .option("--no-color", "disable ANSI color in headless output")
-  .version("0.4.0")
-  .action((failed: string, good: string | undefined, opts: { ui: boolean; port: string; color: boolean }) => {
-    try {
-      const failedRun = parseJsonlFile(failed);
-      let goodRun: ParsedRun;
-      if (good) {
-        goodRun = parseJsonlFile(good);
-      } else {
-        // Auto-resolve a reference run for this task signature, capturing
-        // from ~/.claude/projects/<sanitized-cwd>/ if no cached ref exists.
-        const ref = resolveReference(failedRun);
-        if (!ref.ok || !ref.referencePath) {
-          console.error(`bisect-run: ${ref.reason}`);
-          process.exit(1);
-        }
-        console.error(`bisect-run: ${ref.reason}`);
-        goodRun = parseJsonlFile(ref.referencePath);
-      }
-      const result = align(failedRun, goodRun);
-
-      if (opts.ui) {
-        startServer(result, { failedRun, goodRun }, { port: Number(opts.port) });
+  .option(
+    "--json",
+    "emit machine-readable AlignmentResult JSON to stdout (CI mode; opt-in exit codes; mutually exclusive with --ui)",
+  )
+  .version("0.5.0")
+  .action(
+    (failed: string, good: string | undefined, opts: { ui: boolean; port: string; color: boolean; json: boolean }) => {
+      // --json and --ui are two different output modes and cannot both hold.
+      // (feat-json-ci-output)
+      if (opts.ui && opts.json) {
+        console.error("bisect-run: --json and --ui are mutually exclusive");
+        process.exitCode = 1;
         return;
       }
 
-      printHeadless(result, opts.color);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`bisect-run: ${msg}`);
-      process.exit(1);
-    }
-  });
+      try {
+        const failedRun = parseJsonlFile(failed);
+        let goodRun: ParsedRun;
+        if (good) {
+          goodRun = parseJsonlFile(good);
+        } else {
+          // Auto-resolve a reference run for this task signature, capturing
+          // from ~/.claude/projects/<sanitized-cwd>/ if no cached ref exists.
+          const ref = resolveReference(failedRun);
+          if (!ref.ok || !ref.referencePath) {
+            console.error(`bisect-run: ${ref.reason}`);
+            process.exit(1);
+          }
+          console.error(`bisect-run: ${ref.reason}`);
+          goodRun = parseJsonlFile(ref.referencePath);
+        }
+        const result = align(failedRun, goodRun);
+
+        if (opts.ui) {
+          startServer(result, { failedRun, goodRun }, { port: Number(opts.port) });
+          return;
+        }
+
+        // Machine-readable CI/script output: emit the exact AlignmentResult
+        // the UI server already serializes at /result.json, plus an OPT-IN
+        // exit-code contract that applies ONLY in --json mode (the default
+        // headless path keeps its human-readable output and exit 0/1
+        // semantics unchanged). Exit 0 when a divergence span is found (the
+        // actionable case a CI gates on), 2 when the runs align completely
+        // (nothing to bisect), 1 on error. process.exitCode (not process.exit)
+        // so stdout drains before the process exits. (feat-json-ci-output)
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+          const diverged = result.firstDivergence !== null || result.goodDivergence !== null;
+          process.exitCode = diverged ? 0 : 2;
+          return;
+        }
+
+        printHeadless(result, opts.color);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`bisect-run: ${msg}`);
+        process.exit(1);
+      }
+    },
+  );
 
 function paint(color: boolean, code: string, text: string): string {
   if (!color) return text;

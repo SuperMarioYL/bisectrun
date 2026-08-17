@@ -26,7 +26,7 @@
 import { homedir } from "node:os";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
 import { parseJsonlFile, sanitizeCwd, type ParsedRun } from "./parse-jsonl.js";
 import { signaturesMatch } from "./align.js";
 import type { RunSignature } from "./types.js";
@@ -100,11 +100,36 @@ export function resolveReference(failedRun: ParsedRun, home: string = homedir())
   const ref = refPath(sig, home);
 
   if (existsSync(ref)) {
-    return {
-      ok: true,
-      referencePath: ref,
-      reason: `reference resolved from cache at ${ref}`,
-    };
+    // Validate the cache before trusting it. The cache is written by
+    // copyFileSync (below), which is NOT atomic (O_TRUNC + chunked write),
+    // so a disk-full (ENOSPC) or killed-mid-write leaves a partial/truncated
+    // file on disk. The v0.4.0 write-failure catch falls back to the uncached
+    // source path but did not clean up the partial file, so the very next
+    // invocation hit this `existsSync(ref)` → true branch and returned the
+    // corrupt path — cli.ts then called parseJsonlFile(ref) and the v0.3.0
+    // guard threw "no parseable transcript records in <cache path>" on every
+    // subsequent auto-resolve, sticking the headline m3 feature on a
+    // misleading error pointing at a file the user never named. Self-heal
+    // instead: parse-validate the cache on hit; on failure, delete the
+    // corrupt file (force, in its own try so a cleanup failure cannot trade
+    // one throw for another) and fall through to the normal scan. This covers
+    // all corruption sources (partial ENOSPC write, manual edit, disk
+    // corruption). (fix-autocapture-corrupt-cache-no-selfheal)
+    try {
+      parseJsonlFile(ref);
+      return {
+        ok: true,
+        referencePath: ref,
+        reason: `reference resolved from cache at ${ref}`,
+      };
+    } catch {
+      try {
+        rmSync(ref, { force: true });
+      } catch {
+        // A cleanup failure must not trade one throw for another — fall
+        // through to the scan regardless.
+      }
+    }
   }
 
   const projectDir = join(home, ".claude", "projects", sanitizeCwd(sig.cwd));
@@ -115,7 +140,21 @@ export function resolveReference(failedRun: ParsedRun, home: string = homedir())
   const failedIds = new Set(failedRun.spans.map((s) => s.id));
 
   // Most recent first — the "last successful" run is the freshest match.
-  const candidates = readdirSync(projectDir)
+  // readdirSync is wrapped (not just the per-entry statSync below) so an
+  // unreadable project dir (EACCES on a shared/restricted $HOME / a CI
+  // runner / a dir with perms 0o000, or ENOTDIR when replaced by a file)
+  // returns the friendly unresolved(...) hint instead of throwing uncaught
+  // out of resolveReference — completing the v0.3.0 fix's end-to-end
+  // tolerance goal at the readdir level. (fix-autocapture-readdirsync-uncaught)
+  let entries: string[];
+  try {
+    entries = readdirSync(projectDir);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return unresolved(sig, home, `could not read Claude Code project directory ${projectDir}: ${detail}`);
+  }
+
+  const candidates = entries
     .filter((f) => f.endsWith(".jsonl"))
     .map((f) => {
       const path = join(projectDir, f);
@@ -165,6 +204,18 @@ export function resolveReference(failedRun: ParsedRun, home: string = homedir())
       };
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
+      // A failed copyFileSync (ENOSPC, EACCES) may have left a partial cache
+      // file on disk — remove it so the next invocation's cache-hit path
+      // doesn't return a corrupt path (which would throw downstream). A
+      // cleanup failure must not trade one throw for another. (Part of
+      // fix-autocapture-corrupt-cache-no-selfheal: the cache-hit path now
+      // also self-heals, but proactively removing the partial file here
+      // avoids surfacing the corrupt-cache path in the first place.)
+      try {
+        rmSync(ref, { force: true });
+      } catch {
+        // ignore cleanup failure
+      }
       return {
         ok: true,
         referencePath: c.path,

@@ -130,7 +130,7 @@ function page(result: AlignmentResult, bundle: ServerBundle): string {
     </section>
   </main>
   <footer>
-    BisectRun v0.4.0 — span-semantic bisect for coding agents ·
+    BisectRun v0.5.0 — span-semantic bisect for coding agents ·
     <code>${escapeHtml(JSON.stringify(payload).slice(0, 0))}</code>
   </footer>
   <script id="result" type="application/json">${escapeHtml(JSON.stringify(payload))}</script>
@@ -156,9 +156,19 @@ export function createApp(result: AlignmentResult, bundle: ServerBundle): Hono {
   return app;
 }
 
-export function startServer(result: AlignmentResult, bundle: ServerBundle, opts: { port: number }): void {
+export function startServer(result: AlignmentResult, bundle: ServerBundle, opts: { port: number }): ReturnType<typeof serve> {
   const app = createApp(result, bundle);
-  const server = serve({ fetch: app.fetch, port: opts.port }, (info) => {
+  // Bind explicitly to the loopback interface. Before this, `serve` was
+  // called with NO `hostname` option, so the vendored @hono/node-server
+  // forwarded `undefined` into `server.listen(port, undefined, ...)` and Node
+  // bound the UI to `::` / `0.0.0.0` — ALL interfaces, not localhost. The
+  // served `--ui` page embeds the full alignment payload plus both span
+  // trees (transcript data that routinely carries file paths, bash commands
+  // which may include tokens, and code snippets), so an open bind leaked it
+  // to anyone on the same network. `127.0.0.1` keeps the single-user local
+  // demo happy path unchanged and closes the network-exposure hole.
+  // (fix-ui-server-binds-all-interfaces)
+  const server = serve({ fetch: app.fetch, hostname: "127.0.0.1", port: opts.port }, (info) => {
     console.log(`BisectRun UI → http://localhost:${info.port}`);
   });
   // The vendored `serve` returns a Node `http.Server` with no `error` listener
@@ -171,4 +181,5 @@ export function startServer(result: AlignmentResult, bundle: ServerBundle, opts:
     console.error(`bisect-run: UI server failed to start — ${err.message}`);
     process.exit(1);
   });
+  return server;
 }

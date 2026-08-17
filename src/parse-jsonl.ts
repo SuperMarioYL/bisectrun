@@ -27,6 +27,8 @@ export interface ParsedRun {
   roots: Span[];
   /** The task signature derived from the transcript. */
   signature: RunSignature;
+  /** Total number of JSON records parsed from the transcript (before span derivation). */
+  recordCount: number;
 }
 
 interface RawRecord {
@@ -99,13 +101,21 @@ export function parseJsonlFile(filePath: string): ParsedRun {
   const text = readFileSync(abs, "utf8");
   const run = parseJsonlText(text);
   // Fail loudly when the input was non-empty but the whole file parsed to
-  // zero spans — a total parse failure (the common "pointed at the wrong /
+  // zero records — a total parse failure (the common "pointed at the wrong /
   // corrupted / non-JSONL file" error) must not masquerade as an empty run
   // that align() then reports as a clean "no divergence" result (the
   // opposite of what this tool is for). Per-line tolerance for partial
   // transcript tails is kept intact inside parseJsonlText; we only fail
-  // when the WHOLE file yielded nothing. (fix-silent-success-on-unparseable-transcript)
-  if (run.signature.spanCount === 0 && text.trim().length > 0) {
+  // when the WHOLE file yielded nothing. The guard gates on `recordCount`
+  // (parsed JSON lines), NOT `spanCount` (tool_use-derived Spans): a valid
+  // Claude Code transcript where the agent only chatted (no tool_use blocks)
+  // parses cleanly (recordCount > 0) yet yields spanCount === 0, and gating
+  // on spanCount wrongly told the user a legitimate chat-only transcript was
+  // "not a Claude Code session JSONL?". A garbage file (zero valid JSON
+  // lines) still throws; a chat-only transcript no longer throws and align()
+  // reports no divergence. (fix-silent-success-on-unparseable-transcript,
+  // fix-parsejsonlfile-spans-vs-records)
+  if (run.recordCount === 0 && text.trim().length > 0) {
     throw new Error(
       `no parseable transcript records in ${abs} — not a Claude Code session JSONL?`,
     );
@@ -237,7 +247,7 @@ export function buildRun(records: RawRecord[]): ParsedRun {
     spanCount: spans.length,
   };
 
-  return { spans, roots, signature };
+  return { spans, roots, signature, recordCount: records.length };
 }
 
 /** Flatten a span tree into chronological (depth-first) order. */

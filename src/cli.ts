@@ -34,7 +34,7 @@ program
     "--json",
     "emit machine-readable AlignmentResult JSON to stdout (CI mode; opt-in exit codes; mutually exclusive with --ui)",
   )
-  .version("0.5.0")
+  .version("0.6.0")
   .action(
     (failed: string, good: string | undefined, opts: { ui: boolean; port: string; color: boolean; json: boolean }) => {
       // --json and --ui are two different output modes and cannot both hold.
@@ -68,16 +68,36 @@ program
           return;
         }
 
-        // Machine-readable CI/script output: emit the exact AlignmentResult
-        // the UI server already serializes at /result.json, plus an OPT-IN
-        // exit-code contract that applies ONLY in --json mode (the default
-        // headless path keeps its human-readable output and exit 0/1
-        // semantics unchanged). Exit 0 when a divergence span is found (the
-        // actionable case a CI gates on), 2 when the runs align completely
-        // (nothing to bisect), 1 on error. process.exitCode (not process.exit)
-        // so stdout drains before the process exits. (feat-json-ci-output)
+        // Machine-readable CI/script output: emit the exact payload the UI
+        // server already serves at /result.json, plus an OPT-IN exit-code
+        // contract that applies ONLY in --json mode (the default headless
+        // path keeps its human-readable output and exit 0/1 semantics
+        // unchanged). Exit 0 when a divergence span is found (the actionable
+        // case a CI gates on), 2 when the runs align completely (nothing to
+        // bisect), 1 on error. process.exitCode (not process.exit) so stdout
+        // drains before the process exits.
+        //
+        // The payload OMITS `commonPrefix` (the full AlignmentResult carries
+        // `commonPrefix: Span[]` whose members are the same Span objects that
+        // are also linked via their nested `children` subtree, so the same
+        // span serialized O(n) times and `JSON.stringify(result)` grew
+        // QUADRATICALLY with run length — measured N=10→30KB, N=30→470KB,
+        // N=60→3.1MB, which bloats CI logs on this feature's primary surface).
+        // Mirroring /result.json (which already omits commonPrefix) both
+        // honors the documented parity contract and removes the bloat;
+        // matchedDepth already conveys the matched count for CI consumers.
+        // (fix-json-ci-quadratic-bloat)
         if (opts.json) {
-          console.log(JSON.stringify(result, null, 2));
+          const payload = {
+            signaturesMatch: result.signaturesMatch,
+            matchedDepth: result.matchedDepth,
+            reason: result.reason,
+            failed: result.failed,
+            good: result.good,
+            firstDivergence: result.firstDivergence,
+            goodDivergence: result.goodDivergence,
+          };
+          console.log(JSON.stringify(payload, null, 2));
           const diverged = result.firstDivergence !== null || result.goodDivergence !== null;
           process.exitCode = diverged ? 0 : 2;
           return;

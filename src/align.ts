@@ -46,7 +46,16 @@ export function spanFingerprint(span: Span): string {
     case "Bash":
       return `Bash:${head(str(input.command))}`;
     case "Edit":
-      return `Edit:${str(input.file_path)}|${head(str(input.old_string), 60)}`;
+      // Key on file_path + old_string AND new_string. Before this, the
+      // fingerprint was `Edit:${file_path}|${head(old_string, 60)}` and
+      // ignored new_string entirely, so two runs that edit the same file at
+      // the same spot with the SAME old_string but DIFFERENT new_string (the
+      // canonical "agent wrote the wrong fix to the right spot" divergence)
+      // produced IDENTICAL fingerprints — a silent false-negative on the core
+      // bisect verdict for exactly the scenario this tool exists to locate.
+      // Two edits with the same old_string but different new_string have
+      // DIFFERENT intent, so they must diverge. (fix-edit-fingerprint-ignores-new-string)
+      return `Edit:${str(input.file_path)}|${head(str(input.old_string), 60)}|${head(str(input.new_string), 60)}`;
     case "MultiEdit":
       return `MultiEdit:${str(input.file_path)}|${Array.isArray(input.edits) ? input.edits.length : 0}`;
     case "Write":

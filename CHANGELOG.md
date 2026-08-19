@@ -5,6 +5,45 @@ All notable changes to **BisectRun** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-08-20
+
+### Fixed
+
+- **Detect `Edit` spans that differ only in `new_string` as a divergence**
+  (`src/align.ts`). The `Edit` span fingerprint was
+  `Edit:${file_path}|${head(old_string, 60)}` and ignored `new_string`
+  entirely, so two runs that edit the same file at the same spot with the
+  SAME `old_string` but DIFFERENT `new_string` (the canonical "agent wrote
+  the wrong fix to the right spot" case — e.g. one writes `return a + b;`,
+  the other `return a - b;`) produced IDENTICAL fingerprints, `align()`
+  reported "Runs align completely — no divergence detected", and the
+  divergent Edit was counted as matched. This was a silent false-negative
+  on the core bisect verdict for exactly the scenario the tool exists to
+  locate, and contradicted the README's own "same tool with the same
+  intent" matching definition. The fingerprint now also keys on
+  `head(new_string, 60)`, so two edits with the same `old_string` but
+  different `new_string` (different intent) correctly diverge. Strictly
+  more discriminating and non-breaking: existing fixture Edits already
+  differ in `old_string`, and `align(failed, failed)` still matches.
+- **Stop emitting the full nested `commonPrefix` tree in `--json` CI
+  output** (`src/cli.ts`). `--json` mode emitted `JSON.stringify(result)`
+  including `commonPrefix: Span[]`, where each `Span` carries its nested
+  `children` subtree. Because the common-prefix spans are also linked via
+  `children`, the same span serialized O(n) times, so output grew
+  QUADRATICALLY with run length (measured N=10→~30KB, N=30→~470KB,
+  N=60→~3.1MB), bloating CI logs and parse memory on the feature's primary
+  surface. It also contradicted the feature's stated contract: the plan
+  says `--json` emits "the exact AlignmentResult the server already serves
+  at `/result.json`", but `/result.json` OMITS `commonPrefix` entirely.
+  `--json` now serializes the same payload `/result.json` serves
+  (`signaturesMatch`, `matchedDepth`, `reason`, `failed`, `good`,
+  `firstDivergence`, `goodDivergence` — no `commonPrefix`); `matchedDepth`
+  already conveys the matched count for CI consumers. Non-breaking: the
+  existing `--json` CLI tests assert only those fields (and
+  `firstDivergence` nullness), not `commonPrefix`.
+
+Fixes-only iteration, no new features and no stack/runtime change.
+
 ## [0.4.0] - 2026-08-14
 
 ### Fixed
@@ -84,6 +123,7 @@ No new features and no stack/runtime change in this release.
   local hono server and opens a browser rendering the two derived span trees
   side-by-side with the first divergence span highlighted.
 
+[0.6.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.6.0
 [0.4.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.4.0
 [0.3.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.3.0
 [0.2.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.2.0

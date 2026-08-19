@@ -130,7 +130,7 @@ function page(result: AlignmentResult, bundle: ServerBundle): string {
     </section>
   </main>
   <footer>
-    BisectRun v0.5.0 — span-semantic bisect for coding agents ·
+    BisectRun v0.6.0 — span-semantic bisect for coding agents ·
     <code>${escapeHtml(JSON.stringify(payload).slice(0, 0))}</code>
   </footer>
   <script id="result" type="application/json">${escapeHtml(JSON.stringify(payload))}</script>

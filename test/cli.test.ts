@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -62,4 +64,92 @@ test("--json and --ui are mutually exclusive (clear message, exit 1)", () => {
   const res = runCli([failedFixture, goodFixture, "--ui", "--json"]);
   assert.equal(res.status, 1);
   assert.match(res.stderr, /mutually exclusive/);
+});
+
+// fix-json-ci-quadratic-bloat — --json used to emit the full AlignmentResult
+// including commonPrefix: Span[], whose members are the same Span objects also
+// linked via their nested children subtree, so JSON.stringify(result) grew
+// QUADRATICALLY with run length (measured N=10→~30KB, N=30→~470KB,
+// N=60→~3.1MB), bloating CI logs on this feature's primary surface. It also
+// contradicted the stated /result.json parity contract (the server OMITS
+// commonPrefix). --json now serializes the same payload /result.json serves.
+// RED on revert (full result → output contains commonPrefix and is O(n^2)),
+// GREEN after (no commonPrefix, O(1) for aligned runs).
+
+/** Build a transcript whose n Bash spans form a single deep chain (each span
+ * is the child of the previous one), so a serialized commonPrefix carries the
+ * whole nested tree and grows O(n^2). Used to verify --json output is O(n),
+ * not O(n^2). */
+function nestedTranscript(n: number): string {
+  const base = { cwd: "/repo/nested", gitBranch: "main" };
+  const ts = (i: number) =>
+    `2026-08-20T09:${String(Math.floor(i / 60)).padStart(2, "0")}:${String(i % 60).padStart(2, "0")}.000Z`;
+  const lines: string[] = [
+    JSON.stringify({
+      parentUuid: null,
+      uuid: "u0",
+      type: "user",
+      message: { role: "user", content: [{ type: "text", text: "run nested bash steps" }] },
+      timestamp: ts(0),
+      ...base,
+    }),
+  ];
+  let prev = "u0";
+  let t = 1;
+  for (let i = 0; i < n; i++) {
+    const aUuid = `a${i}`;
+    const uUuid = `ur${i}`;
+    const tuId = `tu${i}`;
+    lines.push(
+      JSON.stringify({
+        parentUuid: prev,
+        uuid: aUuid,
+        type: "assistant",
+        message: { role: "assistant", content: [{ type: "tool_use", id: tuId, name: "Bash", input: { command: `echo step ${i}` } }] },
+        timestamp: ts(t),
+        ...base,
+      }),
+    );
+    t++;
+    lines.push(
+      JSON.stringify({
+        parentUuid: aUuid,
+        uuid: uUuid,
+        type: "user",
+        message: { role: "user", content: [{ type: "tool_result", tool_use_id: tuId, content: "ok", is_error: false }] },
+        timestamp: ts(t),
+        ...base,
+      }),
+    );
+    t++;
+    prev = uUuid;
+  }
+  return lines.join("\n");
+}
+
+test("--json omits commonPrefix (mirrors /result.json, no quadratic bloat)", () => {
+  const n = 40; // a single deep chain of nested Bash spans
+  const text = nestedTranscript(n);
+  const dir = mkdtempSync(join(tmpdir(), "bisectrun-json-"));
+  const failedPath = join(dir, "failed.jsonl");
+  const goodPath = join(dir, "good.jsonl");
+  try {
+    writeFileSync(failedPath, text);
+    writeFileSync(goodPath, text);
+    const res = runCli([failedPath, goodPath, "--json"]);
+    // Identical runs align completely → --json exits 2 (no divergence).
+    assert.equal(res.status, 2, `expected exit 2, got ${res.status}; stderr=${res.stderr}`);
+    const parsed = JSON.parse(res.stdout);
+    assert.equal(parsed.firstDivergence, null);
+    assert.equal(parsed.goodDivergence, null);
+    // The /result.json-shape payload conveys the matched count via matchedDepth
+    // instead of the nested commonPrefix tree.
+    assert.equal(parsed.matchedDepth, n);
+    assert.ok(!/"commonPrefix"/.test(res.stdout), "--json output must NOT carry the commonPrefix field");
+    // With commonPrefix omitted, output is O(1) in the run length, not O(n^2).
+    // (On the reverted build, N=40 nested spans serialize to ~1MB+.)
+    assert.ok(res.stdout.length < 50_000, `--json output should be small, got ${res.stdout.length} bytes`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

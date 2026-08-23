@@ -57,9 +57,23 @@ export function spanFingerprint(span: Span): string {
       // DIFFERENT intent, so they must diverge. (fix-edit-fingerprint-ignores-new-string)
       return `Edit:${str(input.file_path)}|${head(str(input.old_string), 60)}|${head(str(input.new_string), 60)}`;
     case "MultiEdit":
-      return `MultiEdit:${str(input.file_path)}|${Array.isArray(input.edits) ? input.edits.length : 0}`;
+      // Key on file_path + the actual edits payload, not just edits.length.
+      // Before this, the fingerprint was `MultiEdit:${file_path}|${edits.length}`
+      // and ignored the edit content entirely, so two runs that MultiEdit the
+      // same file with the SAME edit count but DIFFERENT edits produced
+      // IDENTICAL fingerprints — the same silent false-negative v0.6.0 fixed
+      // for Edit (the canonical "wrong fix to the right spot" divergence).
+      // `edits` is an array, so serialize via hashish before head(). Mirrors the
+      // Edit content-aware fingerprint. (fix-write-multiedit-fingerprint-ignores-content)
+      return `MultiEdit:${str(input.file_path)}|${head(hashish(input.edits), 60)}`;
     case "Write":
-      return `Write:${str(input.file_path)}`;
+      // Key on file_path + content head, not file_path alone. Before this, two
+      // runs that Write the same file with DIFFERENT content produced IDENTICAL
+      // fingerprints — the same silent false-negative v0.6.0 fixed for Edit.
+      // Write fully replaces file content, so different content is a TOTAL
+      // divergence currently reported as none. Mirrors the Edit content-aware
+      // fingerprint. (fix-write-multiedit-fingerprint-ignores-content)
+      return `Write:${str(input.file_path)}|${head(str(input.content), 60)}`;
     case "Read":
       return `Read:${str(input.file_path)}`;
     case "Glob":

@@ -3,8 +3,13 @@
   "name": "bisectrun",
   "github": "https://github.com/SuperMarioYL/bisectrun",
   "host": "bisectrun.lei6393.com",
-  "lang": { "primary": "en", "toggle": true },
-  "accent": ["#d29922"],
+  "lang": {
+    "primary": "en",
+    "toggle": true
+  },
+  "accent": [
+    "#d29922"
+  ],
   "hero": {
     "eyebrow": {
       "zh": "一条命令 · 自动找上一次跑通 · 本地不上传",
@@ -85,7 +90,9 @@
       ]
     }
   ],
-  "scene": { "kind": "particle-field" },
+  "scene": {
+    "kind": "particle-field"
+  },
   "cta": {
     "headline": {
       "zh": "从「Agent 退化了」到「Agent 在这一步退化」",
@@ -105,5 +112,14 @@
       "zh": "面向编码智能体的 git-bisect · 找出走偏的那一步",
       "en": "git-bisect for coding agents · find the step where it went wrong"
     }
-  }
+  },
+  "content_version": "v0.7.0",
+  "generated_at": "2026-08-23T19:57:24Z",
+  "changelog": [
+    {
+      "version": "v0.7.0",
+      "date": "2026-08-24",
+      "note": "refresh: content re-verified for v0.7.0 (fix-write-multiedit-fingerprint-ignores-content — Write/MultiEdit spans now fingerprint content like Edit, so divergences between runs are no longer missed)."
+    }
+  ]
 }

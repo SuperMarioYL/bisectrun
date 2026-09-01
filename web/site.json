@@ -113,9 +113,14 @@
       "en": "git-bisect for coding agents · find the step where it went wrong"
     }
   },
-  "content_version": "v0.7.0",
-  "generated_at": "2026-08-23T19:57:24Z",
+  "content_version": "v0.8.0",
+  "generated_at": "2026-09-01T04:18:25Z",
   "changelog": [
+    {
+      "version": "v0.8.0",
+      "date": "2026-09-01",
+      "note": "fix: version-drift lockstep — every version-reporting surface (package.json, CLI --version, UI footer, VERSION, CHANGELOG) now advances in lockstep with the release tag, with a regression test guarding against future drift."
+    },
     {
       "version": "v0.7.0",
       "date": "2026-08-24",

@@ -5,6 +5,42 @@ All notable changes to **BisectRun** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-09-01
+
+### Fixed
+
+- **Bump every version-reporting surface to lockstep with the release tag**
+  (`package.json`, `src/cli.ts`, `src/server.ts`, `VERSION`, `web/site.json`,
+  `CHANGELOG.md`). The v0.7.0 release shipped with its version surfaces stuck at
+  `0.6.0` while only the `VERSION` file and the git tag advanced to `v0.7.0`:
+  `package.json` declared `"version": "0.6.0"`, `bisect-run --version` printed
+  `0.6.0`, and the `--ui` footer rendered `BisectRun v0.6.0` — so the standard
+  way users and CI determine which version is running silently misreported the
+  shipped code (which contains the v0.7.0 Write/MultiEdit fingerprint fix a user
+  thinks they are NOT running), and a v0.7.0 `npm publish` would have published
+  `0.6.0` instead of `0.7.0`. All version-reporting surfaces now advance to
+  `0.8.0` in lockstep, and a new `test/version.test.ts` guard treats the
+  `VERSION` file as the single source of truth and asserts the package manifest,
+  CLI `--version`, UI footer, and CHANGELOG top header all agree with it — so the
+  drift cannot recur silently.
+
+## [0.7.0] - 2026-08-24
+
+### Fixed
+
+- **Make `Write` and `MultiEdit` span fingerprints key on content, not just file
+  path** (`src/align.ts`). The `Write` fingerprint was `Write:${file_path}` and
+  the `MultiEdit` fingerprint was `MultiEdit:${file_path}|${edits.length}`, both
+  ignoring the actual content/edits payload, so two runs that Write (or MultiEdit)
+  the same file with the SAME path/edit-count but DIFFERENT content produced
+  IDENTICAL fingerprints and `align()` reported "Runs align completely — no
+  divergence detected" — the same silent false-negative v0.6.0 fixed for `Edit`,
+  on the exact "wrong fix to the right spot" scenario this tool exists to locate.
+  `Write` now also keys on `head(content)`, and `MultiEdit` on
+  `head(hashish(edits))`, mirroring the `Edit` content-aware fingerprint. Strictly
+  more discriminating and non-breaking: existing fixtures' Write/MultiEdit spans
+  already differ in path/content, and `align(failed, failed)` still matches.
+
 ## [0.6.0] - 2026-08-20
 
 ### Fixed
@@ -123,6 +159,8 @@ No new features and no stack/runtime change in this release.
   local hono server and opens a browser rendering the two derived span trees
   side-by-side with the first divergence span highlighted.
 
+[0.8.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.8.0
+[0.7.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.7.0
 [0.6.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.6.0
 [0.4.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.4.0
 [0.3.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.3.0

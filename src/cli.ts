@@ -34,7 +34,7 @@ program
     "--json",
     "emit machine-readable AlignmentResult JSON to stdout (CI mode; opt-in exit codes; mutually exclusive with --ui)",
   )
-  .version("0.6.0")
+  .version("0.8.0")
   .action(
     (failed: string, good: string | undefined, opts: { ui: boolean; port: string; color: boolean; json: boolean }) => {
       // --json and --ui are two different output modes and cannot both hold.

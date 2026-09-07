@@ -1,0 +1,38 @@
+{
+  "mode": "auto",
+  "id": "e6e356-a6e76a-f6daac-213678e66f59",
+  "identity": "https://github.com/supermarioyl/bisectrun",
+  "primary": "#e6e356",
+  "secondary": "#a6e76a",
+  "highlight": "#f6daac",
+  "dark": {
+    "bg": "#0a0c0d",
+    "panel": "#131717",
+    "code": "#141613",
+    "ink": "#fdf8ee",
+    "muted": "#b2b9a8",
+    "line": "#3a3b1d",
+    "primary": "#e6e356",
+    "secondary": "#a6e76a",
+    "highlight": "#f6daac",
+    "accent": "#e6e356",
+    "buttonStart": "#7b7a2e",
+    "buttonEnd": "#5c813b",
+    "buttonText": "#ffffff"
+  },
+  "light": {
+    "bg": "#fefef9",
+    "panel": "#fefef7",
+    "code": "#fdfdf3",
+    "ink": "#27291c",
+    "muted": "#707769",
+    "line": "#f7f6cb",
+    "primary": "#7a782e",
+    "secondary": "#5c7f3b",
+    "highlight": "#82735b",
+    "accent": "#7a782e",
+    "buttonStart": "#7b7a2e",
+    "buttonEnd": "#5c813b",
+    "buttonText": "#ffffff"
+  }
+}

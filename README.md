@@ -1,137 +1,187 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/hero-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="assets/hero-light.svg">
-  <img alt="BisectRun — git-bisect for coding agents" src="assets/hero-light.svg">
-</picture>
-
-# BisectRun
-
-> git-bisect, but for **Coding Agents**. Find the exact span where two agent runs diverge.
-
-[![npm version](https://img.shields.io/npm/v/bisectrun?label=npm&logo=npm)](https://www.npmjs.com/package/bisectrun)
-[![license](https://img.shields.io/npm/l/bisectrun?color=blue)](./LICENSE)
-[![node](https://img.shields.io/node/v/bisectrun?logo=node.js&color=green)](https://www.nodejs.org)
-[![tests](https://img.shields.io/badge/tests-10%20passing-brightgreen)](#tests)
-[![typecheck](https://img.shields.io/badge/tsc-strict-blue?logo=typescript)](./tsconfig.json)
-
-An **Agent** that fixed the bug last week shipped clean. Today's run blew up somewhere in 200 tool calls. `git bisect` finds the bad commit — but what finds the bad *step*? **BisectRun** replays two Claude Code session transcripts, aligns their span trees semantically, and pinpoints the **first divergence**: the single tool call where a passing run and a failing run parted ways.
+**English** | [简体中文](README.zh-CN.md)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/atlas-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="assets/atlas-light.svg">
-  <img alt="BisectRun architecture atlas" src="assets/atlas-light.svg">
+  <source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="assets/presentation/hero-mobile-dark.svg">
+  <source media="(max-width: 640px)" srcset="assets/presentation/hero-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/presentation/hero-dark.svg">
+  <img src="assets/presentation/hero-light.svg" width="1000" alt="Compare two Claude Code transcripts and locate the first difference in their tool inputs.">
 </picture>
 
----
+**Compare two Claude Code transcripts and locate the first difference in their tool inputs.**
 
-## <img src="https://api.iconify.design/tabler:rocket.svg" width="26" align="top"> Quickstart
+`v0.8.0` · `Node.js 20+` · [MIT](LICENSE)
 
-Install and bisect two sessions in one command:
+[Website](https://bisectrun.lei6393.com) · [Demo record](docs/demo-results.json)
+
+## Why use it
+
+Two runs of a repair task may choose the same tools but write different content. BisectRun reads saved transcripts, checks their task signatures, and compares tool inputs in chronological order so you can start reviewing at the first mismatch.
+
+## Architecture
+
+<picture>
+  <source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="assets/presentation/architecture-mobile-dark.svg">
+  <source media="(max-width: 640px)" srcset="assets/presentation/architecture-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/presentation/architecture-dark.svg">
+  <img src="assets/presentation/architecture-light.svg" width="1000" alt="parse-jsonl.ts pairs tool_use and tool_result records into Span trees. align.ts flattens the trees and compares tool-specific fingerprints in order. cli.ts emits text or JSON; server.ts supplies the local side-by-side view. The process reads history without executing the recorded calls.">
+</picture>
+
+parse-jsonl.ts pairs tool_use and tool_result records into Span trees. align.ts flattens the trees and compares tool-specific fingerprints in order. cli.ts emits text or JSON; server.ts supplies the local side-by-side view. The process reads history without executing the recorded calls.
+
+Fingerprint rules live in [align.ts](src/align.ts), and reference discovery in [autocapture.ts](src/autocapture.ts). Edit fingerprints include old_string and new_string; Write and MultiEdit include content summaries.
+
+## Install
+
+Requires Node.js 20+. Dependency installation needs network access; the explicit two-file example below runs offline.
 
 ```bash
-npx bisect-run@latest failed-session.jsonl good-session.jsonl
+git clone https://github.com/SuperMarioYL/bisectrun.git
+cd bisectrun
+npm ci
+npm run build
 ```
 
-Boot the side-by-side diff UI:
+## Quickstart
+
+The demo uses the shipped synthetic transcripts: the first Bash input matches and the second Edit input differs. No agent is started, and the mismatch is not proof of the failure cause.
 
 ```bash
-npx bisect-run@latest failed-session.jsonl good-session.jsonl --ui
-# → BisectRun UI → http://localhost:7331
+node dist/cli.js test/fixtures/failed-session.jsonl test/fixtures/good-session.jsonl --no-color
+node dist/cli.js test/fixtures/failed-session.jsonl test/fixtures/good-session.jsonl --json
 ```
 
-Point it straight at a Claude Code project transcript by session id:
+Both JSONL inputs are in [test/fixtures](test/fixtures/). A [replay script](examples/presentation_demo.sh) runs the same commands.
 
-```bash
-bisect-run ~/.claude/projects/-home-alice-myapp/abc123.jsonl \
-           ~/.claude/projects/-home-alice-myapp/def456.jsonl --ui
-```
+## Usage
 
-### Headless output
+Pass both transcripts to avoid scanning local session directories. Add `--ui` for the side-by-side page, using port 7331 by default or `--port` to change it. `--json` and `--ui` are mutually exclusive. With one transcript, the CLI tries to find a reference by signature.
+
+## Recorded demo
+
+<picture>
+  <source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="assets/presentation/process-mobile-dark.svg">
+  <source media="(max-width: 640px)" srcset="assets/presentation/process-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/presentation/process-dark.svg">
+  <img src="assets/presentation/process-light.svg" width="1000" alt="The demo uses the shipped synthetic transcripts: the first Bash input matches and the second Edit input differs. No agent is started, and the mismatch is not proof of the failure cause.">
+</picture>
+
+### Find the first mismatch
+
+The matched depth is one; the divergence is an Edit.
 
 ```text
-────────────────────────────────────────────────────
+$ node dist/cli.js test/fixtures/failed-session.jsonl test/fixtures/good-session.jsonl --no-color
+────────────────────────────────────────────────────────────
 BisectRun — first divergence
-────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────
 matched depth: 1 span(s)
 
 FAILED divergence: Edit [2026-07-22T09:00:12.000Z] — src/math.ts
 GOOD    divergence: Edit [2026-07-22T08:00:12.000Z] — src/math.ts
 
 First divergence: same tool "Edit" but with different input —
-  failed: Edit:src/math.ts|return a + b;
-  good:   Edit:src/math.ts|return a - b;
+  failed: Edit:src/math.ts|return a + b;|return a - b;
+  good:   Edit:src/math.ts|return a - b;|return a - b;
+────────────────────────────────────────────────────────────
+divergent tool_use input:
+{
+  "file_path": "src/math.ts",
+  "old_string": "  return a + b;",
+  "new_string": "  return a - b;"
+}
+tool_result:
+  is_error: false
+  content:  The file src/math.ts has been updated.
 ```
 
----
+### Read structured output
 
-## <img src="https://api.iconify.design/tabler/player-play.svg" width="26" align="top"> Demo
+JSON retains both signatures and divergent spans.
 
-![BisectRun demo](assets/demo.gif)
-
-The tape that renders this gif lives in [`docs/demo.tape`](./docs/demo.tape).
-
----
-
-## <img src="https://api.iconify.design/tabler/bulb.svg" width="26" align="top"> Why
-
-Coding Agents are non-deterministic. The same prompt can produce a passing run today and a failing run tomorrow, and the diff between them is rarely a single line of code — it is a *sequence* of tool calls. Reviewing two 500-step transcripts by eye to find where they split is miserable.
-
-**BisectRun** gives that workflow a name and a button:
-
-- **Span-semantic alignment** — two spans match when they invoke the same tool with the same intent (a stable fingerprint of the tool_use input), not when their byte-identical. Whitespace, uuids, and timestamps are ignored so "the same step" still matches across runs.
-- **First divergence** — the analogue of `git bisect`'s first bad commit, but at the granularity of an agent step. That single span is almost always the thing worth staring at.
-- **Signature check** — the run signature (cwd + git branch + prompt) is compared up front so you don't bisect two unrelated tasks by accident.
-- **Side-by-side UI** — two span trees rendered next to each other, the divergence highlighted, so a human can see the fork instantly.
-
-BisectRun is the missing observability layer for **Coding Agents**: turn "the agent regressed" into "the agent regressed at *this* span."
-
----
-
-## <img src="https://api.iconify.design/tabler/layout-grid.svg" width="26" align="top"> How it works
-
-1. **Parse** — read a Claude Code `.jsonl` transcript and collapse each `tool_use` + its `tool_result` into a `Span`, stitching them into a tree via the records' `parentUuid`/`uuid` linkage. The first user message, `cwd`, and `gitBranch` become the run's signature.
-2. **Align** — flatten both span trees to chronological order and walk them index by index, comparing per-tool fingerprints (`Bash` → command, `Edit` → file + old_string head, `Read` → path, …). The first index where fingerprints disagree is the divergence.
-3. **Report** — headless mode prints the divergence to stdout; `--ui` serves a Hono page with both trees side by side and the divergence highlighted.
-
----
-
-## <img src="https://api.iconify.design/tabler/package.svg" width="26" align="top"> Project layout
-
+```text
+$ node dist/cli.js test/fixtures/failed-session.jsonl test/fixtures/good-session.jsonl --json
+{
+  "signaturesMatch": true,
+  "matchedDepth": 1,
+  "reason": "First divergence: same tool \"Edit\" but with different input —\n  failed: Edit:src/math.ts|return a + b;|return a - b;\n  good:   Edit:src/math.ts|return a - b;|return a - b;",
+  "failed": {
+    "cwd": "/home/alice/myapp",
+    "gitBranch": "main",
+    "prompt": "Fix the failing test in src/math.ts",
+    "spanCount": 2
+  },
+  "good": {
+    "cwd": "/home/alice/myapp",
+    "gitBranch": "main",
+    "prompt": "Fix the failing test in src/math.ts",
+    "spanCount": 2
+  },
+  "firstDivergence": {
+    "id": "toolu_f2",
+    "parent": "toolu_f1",
+    "name": "Edit",
+    "ts": "2026-07-22T09:00:12.000Z",
+    "tool_use": {
+      "name": "Edit",
+      "input": {
+        "file_path": "src/math.ts",
+        "old_string": "  return a + b;",
+        "new_string": "  return a - b;"
+      }
+    },
+    "children": [],
+    "tool_result": {
+      "is_error": false,
+      "content": "The file src/math.ts has been updated."
+    }
+  },
+  "goodDivergence": {
+    "id": "toolu_g2",
+    "parent": "toolu_g1",
+    "name": "Edit",
+    "ts": "2026-07-22T08:00:12.000Z",
+    "tool_use": {
+      "name": "Edit",
+      "input": {
+        "file_path": "src/math.ts",
+        "old_string": "  return a - b;",
+        "new_string": "  return a - b;"
+      }
+    },
+    "children": [],
+    "tool_result": {
+      "is_error": false,
+      "content": "The file src/math.ts has been updated."
+    }
+  }
+}
 ```
-src/
-  types.ts          Span, RunSignature, AlignmentResult
-  parse-jsonl.ts    transcript → span tree + signature
-  align.ts          span-semantic alignment + first divergence
-  cli.ts            `bisect-run` commander entry
-  server.ts         Hono diff UI
-test/
-  fixtures/         failed/good session JSONL
-  parse.test.ts     align.test.ts
-assets/             animated hero + atlas SVG (light/dark)
-docs/demo.tape      vhs tape rendering the demo gif
-```
 
-## <img src="https://api.iconify.design/tabler/checkbox.svg" width="26" align="top"> Tests
+## Capabilities and integration
 
-```bash
-npm test        # node:test, 10 cases
-npm run typecheck
-npm run build   # tsc → dist/
-```
+<picture>
+  <source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="assets/presentation/integrations-mobile-dark.svg">
+  <source media="(max-width: 640px)" srcset="assets/presentation/integrations-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/presentation/integrations-dark.svg">
+  <img src="assets/presentation/integrations-light.svg" width="1000" alt="Inputs are transcript JSONL files; outputs support human review or scripts. JSON and UI use the compact result fields without repeating the full commonPrefix tree.">
+</picture>
 
----
+Inputs are transcript JSONL files; outputs support human review or scripts. JSON and UI use the compact result fields without repeating the full commonPrefix tree.
 
-## <img src="https://api.iconify.design/tabler/roadmap.svg" width="26" align="top"> Roadmap
 
-- [ ] Auto-locate transcripts from `(cwd, sessionId)` without manual paths
-- [ ] Subtree alignment for parallel / branching tool calls
-- [ ] LLM-assisted semantic diff of the divergent span's input
-- [ ] CI-integrated: bisect a PR's agent run against `main` and fail on regression
-- [ ] Export divergence as a shareable, replayable link
-- [ ] Support for non-Claude-Code transcript formats
 
----
+## Configuration
 
-## <img src="https://api.iconify.design/tabler/license.svg" width="26" align="top"> License
+Task signatures combine cwd, git branch and normalized prompt. Auto references live under `~/.bisect-run/refs`; candidates need at least one span, a result for every span, and no is_error result. JSON mode exits 0 when a divergence is found, 2 when fully aligned, and 1 on errors. Text mode retains its original exit behavior.
 
-MIT © 2026 SuperMarioYL
+## Roadmap and scope
+
+Explicit comparison, heuristic reference discovery, text/JSON reports and local UI are implemented. Subtree alignment for parallel branches, more transcript formats and deeper semantic interpretation remain future directions.
+
+- Fingerprints use bounded tool-field prefixes, not full semantic equivalence or causal attribution.
+- Alignment primarily compares tool inputs; different result content need not trigger divergence.
+- Success in automatic reference selection is a heuristic, not a substitute for tests.
+
+## License
+
+[MIT](LICENSE)

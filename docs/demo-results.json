@@ -1,0 +1,26 @@
+{
+  "version": "0.8.0",
+  "scope": "Offline comparison of the shipped synthetic Claude-style transcripts; no agent is executed and divergence is not causal proof.",
+  "inputs": [
+    {
+      "path": "test/fixtures/failed-session.jsonl",
+      "sha256": "a7b376345695427ceff0951a06c83e13a421a79f6e786694b04cbce5de2411e3"
+    },
+    {
+      "path": "test/fixtures/good-session.jsonl",
+      "sha256": "94ce5e4340b4098d46ba8832a6581d52904309866ee041f58f4026365a19268d"
+    }
+  ],
+  "steps": [
+    {
+      "command": "node dist/cli.js test/fixtures/failed-session.jsonl test/fixtures/good-session.jsonl --no-color",
+      "output": "────────────────────────────────────────────────────────────\nBisectRun — first divergence\n────────────────────────────────────────────────────────────\nmatched depth: 1 span(s)\n\nFAILED divergence: Edit [2026-07-22T09:00:12.000Z] — src/math.ts\nGOOD    divergence: Edit [2026-07-22T08:00:12.000Z] — src/math.ts\n\nFirst divergence: same tool \"Edit\" but with different input —\n  failed: Edit:src/math.ts|return a + b;|return a - b;\n  good:   Edit:src/math.ts|return a - b;|return a - b;\n────────────────────────────────────────────────────────────\ndivergent tool_use input:\n{\n  \"file_path\": \"src/math.ts\",\n  \"old_string\": \"  return a + b;\",\n  \"new_string\": \"  return a - b;\"\n}\ntool_result:\n  is_error: false\n  content:  The file src/math.ts has been updated.\n",
+      "exit_code": 0
+    },
+    {
+      "command": "node dist/cli.js test/fixtures/failed-session.jsonl test/fixtures/good-session.jsonl --json",
+      "output": "{\n  \"signaturesMatch\": true,\n  \"matchedDepth\": 1,\n  \"reason\": \"First divergence: same tool \\\"Edit\\\" but with different input —\\n  failed: Edit:src/math.ts|return a + b;|return a - b;\\n  good:   Edit:src/math.ts|return a - b;|return a - b;\",\n  \"failed\": {\n    \"cwd\": \"/home/alice/myapp\",\n    \"gitBranch\": \"main\",\n    \"prompt\": \"Fix the failing test in src/math.ts\",\n    \"spanCount\": 2\n  },\n  \"good\": {\n    \"cwd\": \"/home/alice/myapp\",\n    \"gitBranch\": \"main\",\n    \"prompt\": \"Fix the failing test in src/math.ts\",\n    \"spanCount\": 2\n  },\n  \"firstDivergence\": {\n    \"id\": \"toolu_f2\",\n    \"parent\": \"toolu_f1\",\n    \"name\": \"Edit\",\n    \"ts\": \"2026-07-22T09:00:12.000Z\",\n    \"tool_use\": {\n      \"name\": \"Edit\",\n      \"input\": {\n        \"file_path\": \"src/math.ts\",\n        \"old_string\": \"  return a + b;\",\n        \"new_string\": \"  return a - b;\"\n      }\n    },\n    \"children\": [],\n    \"tool_result\": {\n      \"is_error\": false,\n      \"content\": \"The file src/math.ts has been updated.\"\n    }\n  },\n  \"goodDivergence\": {\n    \"id\": \"toolu_g2\",\n    \"parent\": \"toolu_g1\",\n    \"name\": \"Edit\",\n    \"ts\": \"2026-07-22T08:00:12.000Z\",\n    \"tool_use\": {\n      \"name\": \"Edit\",\n      \"input\": {\n        \"file_path\": \"src/math.ts\",\n        \"old_string\": \"  return a - b;\",\n        \"new_string\": \"  return a - b;\"\n      }\n    },\n    \"children\": [],\n    \"tool_result\": {\n      \"is_error\": false,\n      \"content\": \"The file src/math.ts has been updated.\"\n    }\n  }\n}\n",
+      "exit_code": 0
+    }
+  ]
+}

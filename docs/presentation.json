@@ -1,0 +1,82 @@
+{
+  "name": "BisectRun",
+  "tagline": "Find the first differing tool step in two transcripts.",
+  "architecture": {
+    "title": "Saved transcripts to a focused divergence",
+    "nodes": [
+      {
+        "title": "Transcript parser",
+        "detail": "parse-jsonl.ts"
+      },
+      {
+        "title": "Span alignment",
+        "detail": "align.ts fingerprints"
+      },
+      {
+        "title": "Reference lookup",
+        "detail": "autocapture.ts, optional"
+      },
+      {
+        "title": "Report / local UI",
+        "detail": "cli.ts + server.ts"
+      }
+    ],
+    "edges": [
+      [
+        0,
+        1
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        1,
+        3
+      ]
+    ]
+  },
+  "process": {
+    "title": "Compare the supplied session pair",
+    "steps": [
+      {
+        "title": "Read fixtures",
+        "detail": "Two synthetic transcripts"
+      },
+      {
+        "title": "Align inputs",
+        "detail": "First Bash input matches"
+      },
+      {
+        "title": "Locate Edit",
+        "detail": "matchedDepth = 1"
+      }
+    ],
+    "result": "The supplied pair first differs at Edit in src/math.ts."
+  },
+  "integrations": {
+    "title": "Transcript inputs and review outputs",
+    "items": [
+      {
+        "title": "Claude JSONL",
+        "detail": "Saved tool-use/result records"
+      },
+      {
+        "title": "Text output",
+        "detail": "Human-readable divergence"
+      },
+      {
+        "title": "JSON output",
+        "detail": "Machine-readable result"
+      },
+      {
+        "title": "Local UI",
+        "detail": "Hono on loopback"
+      },
+      {
+        "title": "Reference cache",
+        "detail": "Optional matching transcript"
+      }
+    ]
+  }
+}

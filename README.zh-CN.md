@@ -1,139 +1,187 @@
-[English](./README.md) | 简体中文
+[English](README.md) | **简体中文**
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/hero-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="assets/hero-light.svg">
-  <img alt="BisectRun — 面向编码智能体的 git-bisect" src="assets/hero-light.svg">
+  <source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="assets/presentation/hero-mobile-dark.svg">
+  <source media="(max-width: 640px)" srcset="assets/presentation/hero-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/presentation/hero-dark.svg">
+  <img src="assets/presentation/hero-light.svg" width="1000" alt="对照两次 Claude Code 会话，定位工具输入首次出现差异的位置。">
 </picture>
 
-# BisectRun
+**对照两次 Claude Code 会话，定位工具输入首次出现差异的位置。**
 
-> git-bisect，但面向 **编码智能体（Coding Agents）**。定位两次 Agent 运行产生分歧的那一个 span。
+`v0.8.0` · `Node.js 20+` · [MIT](LICENSE)
 
-[![npm 版本](https://img.shields.io/npm/v/bisectrun?label=npm&logo=npm)](https://www.npmjs.com/package/bisectrun)
-[![license](https://img.shields.io/npm/l/bisectrun?color=blue)](./LICENSE)
-[![node](https://img.shields.io/node/v/bisectrun?logo=node.js&color=green)](https://www.nodejs.org)
-[![tests](https://img.shields.io/badge/tests-10%20passing-brightgreen)](#测试)
-[![typecheck](https://img.shields.io/badge/tsc-strict-blue?logo=typescript)](./tsconfig.json)
+[Website](https://bisectrun.lei6393.com) · [Demo record](docs/demo-results.json)
 
-上周那次修复 Bug 的 **Agent** 还跑得干干净净。今天的运行却在 200 个工具调用里的某个地方炸了。`git bisect` 能找到出问题的 commit —— 但谁来找到出问题的那一步？**BisectRun** 回放两份 Claude Code 会话记录，按 span 语义对齐两棵 span 树，并精准定位 **首次分歧（first divergence）**：那次通过的运行与失败的运行究竟在哪一个工具调用上分道扬镳。
+## 为什么使用
+
+同一个修复任务，两次 Agent 会话可能选择相同工具，却写入不同内容。BisectRun 读取已经保存的会话，先比较任务签名，再按时间顺序对齐工具输入，让你从第一个不匹配处开始调查。
+
+## 架构
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/atlas-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="assets/atlas-light.svg">
-  <img alt="BisectRun 架构图" src="assets/atlas-light.svg">
+  <source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="assets/presentation/architecture-mobile-dark.svg">
+  <source media="(max-width: 640px)" srcset="assets/presentation/architecture-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/presentation/architecture-dark.svg">
+  <img src="assets/presentation/architecture-light.svg" width="1000" alt="parse-jsonl.ts 将 tool_use 与 tool_result 关联并建立 Span 树；align.ts 将其展平后逐项比较按工具定义的指纹。cli.ts 输出文字或 JSON，server.ts 提供本地并排视图。这个过程读取历史记录，不重新执行工具调用。">
 </picture>
 
----
+parse-jsonl.ts 将 tool_use 与 tool_result 关联并建立 Span 树；align.ts 将其展平后逐项比较按工具定义的指纹。cli.ts 输出文字或 JSON，server.ts 提供本地并排视图。这个过程读取历史记录，不重新执行工具调用。
 
-## <img src="https://api.iconify.design/tabler/rocket.svg" width="26" align="top"> 快速开始
+指纹规则在 [align.ts](src/align.ts)，参考会话定位在 [autocapture.ts](src/autocapture.ts)。Edit 指纹包含 old_string 和 new_string；Write、MultiEdit 也包含内容摘要。
 
-一条命令安装并对两次会话做 bisect：
+## 安装
 
-```bash
-npx bisect-run@latest failed-session.jsonl good-session.jsonl
-```
-
-启动左右并排的差异 UI：
+需要 Node.js 20+；依赖安装需要网络，下面的显式双文件示例完全离线。
 
 ```bash
-npx bisect-run@latest failed-session.jsonl good-session.jsonl --ui
-# → BisectRun UI → http://localhost:7331
+git clone https://github.com/SuperMarioYL/bisectrun.git
+cd bisectrun
+npm ci
+npm run build
 ```
 
-直接按会话 id 指向 Claude Code 项目记录：
+## 快速开始
+
+演示使用仓库自带的合成会话：第一个 Bash 输入相同，第二个 Edit 输入不同。没有启动 Agent，也没有证明该差异就是故障原因。
 
 ```bash
-bisect-run ~/.claude/projects/-home-alice-myapp/abc123.jsonl \
-           ~/.claude/projects/-home-alice-myapp/def456.jsonl --ui
+node dist/cli.js test/fixtures/failed-session.jsonl test/fixtures/good-session.jsonl --no-color
+node dist/cli.js test/fixtures/failed-session.jsonl test/fixtures/good-session.jsonl --json
 ```
 
-### 无头模式输出
+两个 JSONL 文件位于 [test/fixtures](test/fixtures/)，可直接重放 [脚本](examples/presentation_demo.sh)。
+
+## 使用
+
+显式传入失败与参考会话可避免扫描本机会话目录。加 `--ui` 启动并排页面，默认端口 7331，可用 `--port` 更改；`--json` 与 `--ui` 互斥。只给一个会话时会按签名寻找参考记录。
+
+## 实际 Demo
+
+<picture>
+  <source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="assets/presentation/process-mobile-dark.svg">
+  <source media="(max-width: 640px)" srcset="assets/presentation/process-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/presentation/process-dark.svg">
+  <img src="assets/presentation/process-light.svg" width="1000" alt="演示使用仓库自带的合成会话：第一个 Bash 输入相同，第二个 Edit 输入不同。没有启动 Agent，也没有证明该差异就是故障原因。">
+</picture>
+
+### 定位首个差异
+
+匹配深度为 1，差异位于 Edit。
 
 ```text
-────────────────────────────────────────────────────
+$ node dist/cli.js test/fixtures/failed-session.jsonl test/fixtures/good-session.jsonl --no-color
+────────────────────────────────────────────────────────────
 BisectRun — first divergence
-────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────
 matched depth: 1 span(s)
 
 FAILED divergence: Edit [2026-07-22T09:00:12.000Z] — src/math.ts
 GOOD    divergence: Edit [2026-07-22T08:00:12.000Z] — src/math.ts
 
 First divergence: same tool "Edit" but with different input —
-  failed: Edit:src/math.ts|return a + b;
-  good:   Edit:src/math.ts|return a - b;
+  failed: Edit:src/math.ts|return a + b;|return a - b;
+  good:   Edit:src/math.ts|return a - b;|return a - b;
+────────────────────────────────────────────────────────────
+divergent tool_use input:
+{
+  "file_path": "src/math.ts",
+  "old_string": "  return a + b;",
+  "new_string": "  return a - b;"
+}
+tool_result:
+  is_error: false
+  content:  The file src/math.ts has been updated.
 ```
 
----
+### 读取结构化结果
 
-## <img src="https://api.iconify.design/tabler/player-play.svg" width="26" align="top"> 演示
+JSON 保留双方签名和两个差异 Span。
 
-![BisectRun 演示](assets/demo.gif)
-
-渲染这张 gif 的脚本位于 [`docs/demo.tape`](./docs/demo.tape)。
-
----
-
-## <img src="https://api.iconify.design/tabler/bulb.svg" width="26" align="top"> 为什么
-
-编码智能体具有不确定性。同一条 prompt 今天能跑通、明天就可能挂掉，而两者之间的差异很少是单行代码 —— 而是**一串**工具调用。靠肉眼在两份 500 步的记录里找它们在哪分叉，非常痛苦。
-
-**BisectRun** 给这套流程起了名字、也给了一个按钮：
-
-- **span 语义对齐** —— 当两次 span 调用相同工具且意图相同时（基于 tool_use 输入的稳定指纹），即视为匹配，而非逐字节相同。空白、uuid、时间戳都会被忽略，因此"同一步"在不同运行间仍能匹配。
-- **首次分歧** —— 相当于 `git bisect` 的"首个坏 commit"，但粒度细化到 Agent 的一步。这一个 span 几乎总是最值得盯的那一处。
-- **签名校验** —— 先比较运行签名（cwd + git 分支 + prompt），避免你误把两个不相关的任务拿来 bisect。
-- **并排 UI** —— 两棵 span 树相邻渲染，分歧处高亮，让人一眼看到分叉。
-
-BisectRun 是 **编码智能体** 缺失的那一层可观测性：把"Agent 退化了"变成"Agent 在**这一个** span 退化了"。
-
----
-
-## <img src="https://api.iconify.design/tabler/layout-grid.svg" width="26" align="top"> 工作原理
-
-1. **解析** —— 读取 Claude Code 的 `.jsonl` 记录，把每个 `tool_use` 与其对应的 `tool_result` 合并为一个 `Span`，并通过记录的 `parentUuid`/`uuid` 链路织成一棵树。首条用户消息、`cwd`、`gitBranch` 组成运行签名。
-2. **对齐** —— 将两棵 span 树展平为时间序，按索引逐个比较每种工具的指纹（`Bash` → 命令、`Edit` → 文件 + old_string 头部、`Read` → 路径 ……）。指纹首次不一致的索引即为分歧点。
-3. **报告** —— 无头模式把分歧打印到 stdout；`--ui` 启动 Hono 页面，两棵树并排渲染并高亮分歧。
-
----
-
-## <img src="https://api.iconify.design/tabler/package.svg" width="26" align="top"> 目录结构
-
+```text
+$ node dist/cli.js test/fixtures/failed-session.jsonl test/fixtures/good-session.jsonl --json
+{
+  "signaturesMatch": true,
+  "matchedDepth": 1,
+  "reason": "First divergence: same tool \"Edit\" but with different input —\n  failed: Edit:src/math.ts|return a + b;|return a - b;\n  good:   Edit:src/math.ts|return a - b;|return a - b;",
+  "failed": {
+    "cwd": "/home/alice/myapp",
+    "gitBranch": "main",
+    "prompt": "Fix the failing test in src/math.ts",
+    "spanCount": 2
+  },
+  "good": {
+    "cwd": "/home/alice/myapp",
+    "gitBranch": "main",
+    "prompt": "Fix the failing test in src/math.ts",
+    "spanCount": 2
+  },
+  "firstDivergence": {
+    "id": "toolu_f2",
+    "parent": "toolu_f1",
+    "name": "Edit",
+    "ts": "2026-07-22T09:00:12.000Z",
+    "tool_use": {
+      "name": "Edit",
+      "input": {
+        "file_path": "src/math.ts",
+        "old_string": "  return a + b;",
+        "new_string": "  return a - b;"
+      }
+    },
+    "children": [],
+    "tool_result": {
+      "is_error": false,
+      "content": "The file src/math.ts has been updated."
+    }
+  },
+  "goodDivergence": {
+    "id": "toolu_g2",
+    "parent": "toolu_g1",
+    "name": "Edit",
+    "ts": "2026-07-22T08:00:12.000Z",
+    "tool_use": {
+      "name": "Edit",
+      "input": {
+        "file_path": "src/math.ts",
+        "old_string": "  return a - b;",
+        "new_string": "  return a - b;"
+      }
+    },
+    "children": [],
+    "tool_result": {
+      "is_error": false,
+      "content": "The file src/math.ts has been updated."
+    }
+  }
+}
 ```
-src/
-  types.ts          Span, RunSignature, AlignmentResult
-  parse-jsonl.ts    记录 → span 树 + 签名
-  align.ts          span 语义对齐 + 首次分歧
-  cli.ts            `bisect-run` commander 入口
-  server.ts         Hono 差异 UI
-test/
-  fixtures/         failed/good 会话 JSONL
-  parse.test.ts     align.test.ts
-assets/             动态 hero + 架构图 SVG（明/暗）
-docs/demo.tape      渲染演示 gif 的 vhs 脚本
-```
 
-## <img src="https://api.iconify.design/tabler/checkbox.svg" width="26" align="top"> 测试
+## 能力与接入
 
-```bash
-npm test        # node:test, 10 个用例
-npm run typecheck
-npm run build   # tsc → dist/
-```
+<picture>
+  <source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="assets/presentation/integrations-mobile-dark.svg">
+  <source media="(max-width: 640px)" srcset="assets/presentation/integrations-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/presentation/integrations-dark.svg">
+  <img src="assets/presentation/integrations-light.svg" width="1000" alt="输入是会话 JSONL，输出可用于人工检查或脚本消费；JSON 与 UI 共享紧凑结果字段，不重复输出整个 commonPrefix 树。">
+</picture>
 
----
+输入是会话 JSONL，输出可用于人工检查或脚本消费；JSON 与 UI 共享紧凑结果字段，不重复输出整个 commonPrefix 树。
 
-## <img src="https://api.iconify.design/tabler/roadmap.svg" width="26" align="top"> 路线图
 
-- [ ] 无需手填路径，按 `(cwd, sessionId)` 自动定位记录
-- [ ] 针对并行 / 分支工具调用的子树对齐
-- [ ] 用 LLM 对分歧 span 的输入做语义差异
-- [ ] 接入 CI：把 PR 的 Agent 运行与 `main` 做 bisect，回归即失败
-- [ ] 把分歧导出为可分享、可回放的链接
-- [ ] 支持非 Claude Code 的记录格式
 
----
+## 配置
 
-## <img src="https://api.iconify.design/tabler/license.svg" width="26" align="top"> 许可证
+任务签名是 cwd、git branch 和规范化 prompt。自动参考目录为 `~/.bisect-run/refs`；候选会话需至少一个 Span、每个 Span 都有结果且没有 is_error。JSON 模式退出码：找到差异为 0，完全对齐为 2，错误为 1。文本模式保留原有退出行为。
 
-MIT © 2026 SuperMarioYL
+## 路线图与范围
+
+已实现显式对照、启发式参考定位、文字/JSON 输出和本地 UI。并行分支的子树对齐、更多会话格式与更深入的语义解释仍是后续方向。
+
+- 指纹使用工具字段的有限前缀，不是完整语义等价或因果归因。
+- 主要对齐依据是工具输入；结果内容不同不一定触发差异。
+- 自动参考选择中的成功是启发式判断，不代替测试结果。
+
+## 许可证
+
+[MIT](LICENSE)

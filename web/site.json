@@ -1,130 +1,244 @@
 {
-  "schema": 1,
-  "name": "bisectrun",
+  "schema": 3,
+  "name": "BisectRun",
   "github": "https://github.com/SuperMarioYL/bisectrun",
   "host": "bisectrun.lei6393.com",
+  "palette": "auto",
   "lang": {
     "primary": "en",
     "toggle": true
   },
-  "accent": [
-    "#d29922"
-  ],
+  "meta": {
+    "visual_profile": "neon-particle",
+    "content_version": "0.8.0",
+    "demo_source": "docs/demo-results.json"
+  },
   "hero": {
     "eyebrow": {
-      "zh": "一条命令 · 自动找上一次跑通 · 本地不上传",
-      "en": "One command · Finds the last run that worked · Local, no upload"
+      "zh": "对照两次 Claude Code 会话，定位工具输入首次出现差异的位置。",
+      "en": "Compare two Claude Code transcripts and locate the first difference in their tool inputs."
     },
     "headline": {
-      "zh": "只丢一份失败记录\n它自动找回上次跑通的那次",
-      "en": "Hand it the failed run\nit finds the last one that worked"
+      "zh": "两次会话，\n从哪一步分开",
+      "en": "Two runs.\nFind where they split."
     },
     "sub": {
-      "zh": "从你的 Claude Code 会话历史里，自动挑出同一任务最近一次干净跑完的运行，把两次运行逐步对齐，精准定位两者分道扬镳的那一步——指向的不是会话文件时，也会明说，而不是假装没有分歧。",
-      "en": "It scans your Claude Code session history for the most recent clean run of the same task, lines the two runs up step by step, and pinpoints the exact step where they parted ways — and if you hand it something that isn't a session, it says so instead of a false \"no divergence\"."
+      "zh": "对照两次 Claude Code 会话，定位工具输入首次出现差异的位置。",
+      "en": "Compare two Claude Code transcripts and locate the first difference in their tool inputs."
     },
-    "command": "npx bisect-run@latest failed-session.jsonl --ui"
+    "href": "#quickstart",
+    "cta": {
+      "zh": "运行示例",
+      "en": "Run the example"
+    },
+    "ctaGithub": {
+      "zh": "查看源码",
+      "en": "View source"
+    }
+  },
+  "scene": {
+    "kind": "neon-graph",
+    "caption": {
+      "zh": "会话对照 · 工具输入",
+      "en": "TRANSCRIPT COMPARISON · TOOL INPUTS"
+    },
+    "fallback": "/assets/presentation/scene-dark.svg",
+    "fallbackLight": "/assets/presentation/scene-light.svg"
   },
   "advantages": [
     {
       "title": {
-        "zh": "不用再翻出上次跑通的那次",
-        "en": "No more digging up the run that worked"
+        "zh": "比较实际写入",
+        "en": "Compare written content"
       },
       "body": {
-        "zh": "省掉手动满世界找那份对照运行：按你的任务——工作目录、分支、原始请求——从 Claude Code 会话历史里自动挑出最近一次干净跑完的运行，缓存好，下次同一任务直接复用。只丢一份失败记录就能开跑；会话目录里有个坏文件或读不动的那条，也不影响自动找回——跳过它继续扫。",
-        "en": "Skip the manual hunt for the run to compare against: it auto-picks the most recent clean run of your task — by working directory, branch and original request — from your Claude Code session history, caches it, and reuses it next time the same task comes up. Hand it just the failed run and go; a broken or unreadable file sitting in the history won't abort the auto-resolve either — it's skipped, not fatal."
-      },
-      "chips": [
-        "› 按任务自动挑参照",
-        "› 缓存复用 · 同任务零成本",
-        "› 找不到就清楚告诉你",
-        "› 坏文件不中断自动找回"
-      ]
+        "zh": "Edit、Write 与 MultiEdit 的指纹包含内容信息。",
+        "en": "Edit, Write and MultiEdit fingerprints include content information."
+      }
     },
     {
       "title": {
-        "zh": "拖垮全局的那一步",
-        "en": "The one step that broke it"
+        "zh": "检查任务签名",
+        "en": "Check task signatures"
       },
       "body": {
-        "zh": "别再肉眼比对几百个步骤。成功运行与失败运行首次分叉的那一步，几乎总是最该深究的——几秒内呈现在你面前。指向的不是会话文件时，它会明确告诉你，而不是甩给你一句假装没有分歧的空结果。",
-        "en": "Stop scanning two hundred steps by eye. The first step where a passing run and a failing run parted ways is almost always the one worth staring at — and it's handed to you in seconds. Point it at a file that isn't a session and it tells you so, instead of handing back a silent empty \"no divergence\" result."
-      },
-      "chips": [
-        "› 首次分叉 · 不是整段 diff",
-        "› 匹配步数前置可见",
-        "› 几秒 · 不是几小时",
-        "› 指错文件会明说，不假装没分歧"
-      ]
+        "zh": "cwd、分支与 prompt 不同会被提示。",
+        "en": "Differences in cwd, branch or prompt are surfaced."
+      }
     },
     {
       "title": {
-        "zh": "绝不把两个不同任务拿来比对",
-        "en": "Never bisect two different tasks"
+        "zh": "选择查看方式",
+        "en": "Choose a review surface"
       },
       "body": {
-        "zh": "在对齐之前，先比对两次运行的工作目录、分支与原始请求——一旦指向不同任务的运行，立刻提醒你。",
-        "en": "Before any alignment, the working directory, branch, and original request of both runs are compared — so you're warned the instant you point it at runs that aren't the same task."
-      },
-      "chips": [
-        "› 先查目录·分支·请求",
-        "› 跨任务运行即刻提醒",
-        "› 不会误比错配对"
-      ]
-    },
-    {
-      "title": {
-        "zh": "一眼看到分叉，全程本地",
-        "en": "See the fork — all local"
-      },
-      "body": {
-        "zh": "两次运行并排渲染，分叉处高亮——一眼看清分叉，无需在两份日志间来回对照。本地页面打开，不上云、不传你的会话记录；端口被占也能干净退出，不甩你一脸原始报错。",
-        "en": "Both runs render next to each other, the divergence lit up — so a human sees the fork in one glance instead of cross-referencing two logs. It opens a local page: no cloud, no upload of your transcripts; and a busy port exits cleanly instead of dumping a raw stack trace."
-      },
-      "chips": [
-        "› 两份运行 · 一屏",
-        "› 分叉高亮",
-        "› 端口占用也不崩",
-        "› 亦可作为库引用"
-      ]
+        "zh": "终端、JSON 与本地并排 UI 使用同一比较结果。",
+        "en": "Terminal, JSON and local UI share the same comparison result."
+      }
     }
   ],
-  "scene": {
-    "kind": "particle-field"
+  "story": {
+    "intro": {
+      "title": {
+        "zh": "把长会话缩到一个可检查的差异",
+        "en": "Turn a long transcript into a focused comparison"
+      },
+      "body": {
+        "zh": "同一个修复任务，两次 Agent 会话可能选择相同工具，却写入不同内容。BisectRun 读取已经保存的会话，先比较任务签名，再按时间顺序对齐工具输入，让你从第一个不匹配处开始调查。",
+        "en": "Two runs of a repair task may choose the same tools but write different content. BisectRun reads saved transcripts, checks their task signatures, and compares tool inputs in chronological order so you can start reviewing at the first mismatch."
+      }
+    },
+    "sections": [
+      {
+        "title": {
+          "zh": "从输入到结果",
+          "en": "From input to result"
+        },
+        "body": {
+          "zh": "演示使用仓库自带的合成会话：第一个 Bash 输入相同，第二个 Edit 输入不同。没有启动 Agent，也没有证明该差异就是故障原因。",
+          "en": "The demo uses the shipped synthetic transcripts: the first Bash input matches and the second Edit input differs. No agent is started, and the mismatch is not proof of the failure cause."
+        },
+        "image": {
+          "light": "/assets/presentation/process-light.svg",
+          "dark": "/assets/presentation/process-dark.svg",
+          "alt": {
+            "zh": "演示使用仓库自带的合成会话：第一个 Bash 输入相同，第二个 Edit 输入不同。没有启动 Agent，也没有证明该差异就是故障原因。",
+            "en": "The demo uses the shipped synthetic transcripts: the first Bash input matches and the second Edit input differs. No agent is started, and the mismatch is not proof of the failure cause."
+          }
+        }
+      },
+      {
+        "title": {
+          "zh": "工作原理",
+          "en": "How it works"
+        },
+        "body": {
+          "zh": "parse-jsonl.ts 将 tool_use 与 tool_result 关联并建立 Span 树；align.ts 将其展平后逐项比较按工具定义的指纹。cli.ts 输出文字或 JSON，server.ts 提供本地并排视图。这个过程读取历史记录，不重新执行工具调用。",
+          "en": "parse-jsonl.ts pairs tool_use and tool_result records into Span trees. align.ts flattens the trees and compares tool-specific fingerprints in order. cli.ts emits text or JSON; server.ts supplies the local side-by-side view. The process reads history without executing the recorded calls."
+        },
+        "image": {
+          "light": "/assets/presentation/architecture-light.svg",
+          "dark": "/assets/presentation/architecture-dark.svg",
+          "alt": {
+            "zh": "parse-jsonl.ts 将 tool_use 与 tool_result 关联并建立 Span 树；align.ts 将其展平后逐项比较按工具定义的指纹。cli.ts 输出文字或 JSON，server.ts 提供本地并排视图。这个过程读取历史记录，不重新执行工具调用。",
+            "en": "parse-jsonl.ts pairs tool_use and tool_result records into Span trees. align.ts flattens the trees and compares tool-specific fingerprints in order. cli.ts emits text or JSON; server.ts supplies the local side-by-side view. The process reads history without executing the recorded calls."
+          }
+        }
+      },
+      {
+        "title": {
+          "zh": "能力与接入",
+          "en": "Capabilities and integration"
+        },
+        "body": {
+          "zh": "输入是会话 JSONL，输出可用于人工检查或脚本消费；JSON 与 UI 共享紧凑结果字段，不重复输出整个 commonPrefix 树。",
+          "en": "Inputs are transcript JSONL files; outputs support human review or scripts. JSON and UI use the compact result fields without repeating the full commonPrefix tree."
+        },
+        "image": {
+          "light": "/assets/presentation/integrations-light.svg",
+          "dark": "/assets/presentation/integrations-dark.svg",
+          "alt": {
+            "zh": "输入是会话 JSONL，输出可用于人工检查或脚本消费；JSON 与 UI 共享紧凑结果字段，不重复输出整个 commonPrefix 树。",
+            "en": "Inputs are transcript JSONL files; outputs support human review or scripts. JSON and UI use the compact result fields without repeating the full commonPrefix tree."
+          }
+        }
+      }
+    ],
+    "details": [
+      {
+        "title": {
+          "zh": "JSON 退出码",
+          "en": "JSON exit codes"
+        },
+        "body": {
+          "zh": "0 为找到差异，2 为完全对齐，1 为错误；不要将 2 当作解析失败。",
+          "en": "0 means a divergence, 2 means complete alignment, and 1 means an error; do not treat 2 as a parse failure."
+        }
+      }
+    ]
   },
-  "cta": {
-    "headline": {
-      "zh": "从「Agent 退化了」到「Agent 在这一步退化」",
-      "en": "From 'the agent regressed' to 'the agent regressed at this step'"
+  "demo": {
+    "title": {
+      "zh": "实际运行结果",
+      "en": "Actual demo output"
     },
-    "sub": {
-      "zh": "开源、MIT、无付费墙。本地比对这一核心动作，永不设墙。",
-      "en": "Open source, MIT, no paywall. The core act of comparing runs locally is never gated."
+    "note": {
+      "zh": "演示使用仓库自带的合成会话：第一个 Bash 输入相同，第二个 Edit 输入不同。没有启动 Agent，也没有证明该差异就是故障原因。",
+      "en": "The demo uses the shipped synthetic transcripts: the first Bash input matches and the second Edit input differs. No agent is started, and the mismatch is not proof of the failure cause."
     },
-    "button": {
-      "zh": "在 GitHub 上开始",
-      "en": "Get started on GitHub"
+    "source": "https://github.com/SuperMarioYL/bisectrun/blob/main/docs/demo-results.json",
+    "steps": [
+      {
+        "label": {
+          "zh": "定位首个差异",
+          "en": "Find the first mismatch"
+        },
+        "body": {
+          "zh": "匹配深度为 1，差异位于 Edit。",
+          "en": "The matched depth is one; the divergence is an Edit."
+        },
+        "command": "node dist/cli.js test/fixtures/failed-session.jsonl test/fixtures/good-session.jsonl --no-color",
+        "output": "────────────────────────────────────────────────────────────\nBisectRun — first divergence\n────────────────────────────────────────────────────────────\nmatched depth: 1 span(s)\n\nFAILED divergence: Edit [2026-07-22T09:00:12.000Z] — src/math.ts\nGOOD    divergence: Edit [2026-07-22T08:00:12.000Z] — src/math.ts\n\nFirst divergence: same tool \"Edit\" but with different input —\n  failed: Edit:src/math.ts|return a + b;|return a - b;\n  good:   Edit:src/math.ts|return a - b;|return a - b;\n────────────────────────────────────────────────────────────\ndivergent tool_use input:\n{\n  \"file_path\": \"src/math.ts\",\n  \"old_string\": \"  return a + b;\",\n  \"new_string\": \"  return a - b;\"\n}\ntool_result:\n  is_error: false\n  content:  The file src/math.ts has been updated.\n",
+        "image": "/assets/presentation/demo-0-light.svg",
+        "imageDark": "/assets/presentation/demo-0-dark.svg"
+      },
+      {
+        "label": {
+          "zh": "读取结构化结果",
+          "en": "Read structured output"
+        },
+        "body": {
+          "zh": "JSON 保留双方签名和两个差异 Span。",
+          "en": "JSON retains both signatures and divergent spans."
+        },
+        "command": "node dist/cli.js test/fixtures/failed-session.jsonl test/fixtures/good-session.jsonl --json",
+        "output": "{\n  \"signaturesMatch\": true,\n  \"matchedDepth\": 1,\n  \"reason\": \"First divergence: same tool \\\"Edit\\\" but with different input —\\n  failed: Edit:src/math.ts|return a + b;|return a - b;\\n  good:   Edit:src/math.ts|return a - b;|return a - b;\",\n  \"failed\": {\n    \"cwd\": \"/home/alice/myapp\",\n    \"gitBranch\": \"main\",\n    \"prompt\": \"Fix the failing test in src/math.ts\",\n    \"spanCount\": 2\n  },\n  \"good\": {\n    \"cwd\": \"/home/alice/myapp\",\n    \"gitBranch\": \"main\",\n    \"prompt\": \"Fix the failing test in src/math.ts\",\n    \"spanCount\": 2\n  },\n  \"firstDivergence\": {\n    \"id\": \"toolu_f2\",\n    \"parent\": \"toolu_f1\",\n    \"name\": \"Edit\",\n    \"ts\": \"2026-07-22T09:00:12.000Z\",\n    \"tool_use\": {\n      \"name\": \"Edit\",\n      \"input\": {\n        \"file_path\": \"src/math.ts\",\n        \"old_string\": \"  return a + b;\",\n        \"new_string\": \"  return a - b;\"\n      }\n    },\n    \"children\": [],\n    \"tool_result\": {\n      \"is_error\": false,\n      \"content\": \"The file src/math.ts has been updated.\"\n    }\n  },\n  \"goodDivergence\": {\n    \"id\": \"toolu_g2\",\n    \"parent\": \"toolu_g1\",\n    \"name\": \"Edit\",\n    \"ts\": \"2026-07-22T08:00:12.000Z\",\n    \"tool_use\": {\n      \"name\": \"Edit\",\n      \"input\": {\n        \"file_path\": \"src/math.ts\",\n        \"old_string\": \"  return a - b;\",\n        \"new_string\": \"  return a - b;\"\n      }\n    },\n    \"children\": [],\n    \"tool_result\": {\n      \"is_error\": false,\n      \"content\": \"The file src/math.ts has been updated.\"\n    }\n  }\n}\n",
+        "image": "/assets/presentation/demo-1-light.svg",
+        "imageDark": "/assets/presentation/demo-1-dark.svg"
+      }
+    ]
+  },
+  "quickstart": {
+    "title": {
+      "zh": "从完整输入开始",
+      "en": "Start with complete input"
+    },
+    "body": {
+      "zh": "需要 Node.js 20+；依赖安装需要网络，下面的显式双文件示例完全离线。",
+      "en": "Requires Node.js 20+. Dependency installation needs network access; the explicit two-file example below runs offline."
+    },
+    "steps": [
+      {
+        "title": {
+          "zh": "安装",
+          "en": "Install"
+        },
+        "code": "git clone https://github.com/SuperMarioYL/bisectrun.git\ncd bisectrun\nnpm ci\nnpm run build"
+      },
+      {
+        "title": {
+          "zh": "运行自带示例",
+          "en": "Run the supplied example"
+        },
+        "code": "node dist/cli.js test/fixtures/failed-session.jsonl test/fixtures/good-session.jsonl --no-color\nnode dist/cli.js test/fixtures/failed-session.jsonl test/fixtures/good-session.jsonl --json"
+      }
+    ]
+  },
+  "limitations": [
+    {
+      "zh": "指纹使用工具字段的有限前缀，不是完整语义等价或因果归因。",
+      "en": "Fingerprints use bounded tool-field prefixes, not full semantic equivalence or causal attribution."
+    },
+    {
+      "zh": "主要对齐依据是工具输入；结果内容不同不一定触发差异。",
+      "en": "Alignment primarily compares tool inputs; different result content need not trigger divergence."
+    },
+    {
+      "zh": "自动参考选择中的成功是启发式判断，不代替测试结果。",
+      "en": "Success in automatic reference selection is a heuristic, not a substitute for tests."
     }
-  },
+  ],
   "footer": {
-    "tag": {
-      "zh": "面向编码智能体的 git-bisect · 找出走偏的那一步",
-      "en": "git-bisect for coding agents · find the step where it went wrong"
-    }
-  },
-  "content_version": "v0.8.0",
-  "generated_at": "2026-09-01T04:18:25Z",
-  "changelog": [
-    {
-      "version": "v0.8.0",
-      "date": "2026-09-01",
-      "note": "fix: version-drift lockstep — every version-reporting surface (package.json, CLI --version, UI footer, VERSION, CHANGELOG) now advances in lockstep with the release tag, with a regression test guarding against future drift."
-    },
-    {
-      "version": "v0.7.0",
-      "date": "2026-08-24",
-      "note": "refresh: content re-verified for v0.7.0 (fix-write-multiedit-fingerprint-ignores-content — Write/MultiEdit spans now fingerprint content like Edit, so divergences between runs are no longer missed)."
-    }
-  ]
+    "tag": "0.8.0 · Node.js 20+ · MIT"
+  }
 }

@@ -104,6 +104,10 @@
           "alt": {
             "zh": "演示使用仓库自带的合成会话：第一个 Bash 输入相同，第二个 Edit 输入不同。没有启动 Agent，也没有证明该差异就是故障原因。",
             "en": "The demo uses the shipped synthetic transcripts: the first Bash input matches and the second Edit input differs. No agent is started, and the mismatch is not proof of the failure cause."
+          },
+          "mobile": {
+            "light": "/assets/presentation/process-mobile-light.svg",
+            "dark": "/assets/presentation/process-mobile-dark.svg"
           }
         }
       },
@@ -122,6 +126,10 @@
           "alt": {
             "zh": "parse-jsonl.ts 将 tool_use 与 tool_result 关联并建立 Span 树；align.ts 将其展平后逐项比较按工具定义的指纹。cli.ts 输出文字或 JSON，server.ts 提供本地并排视图。这个过程读取历史记录，不重新执行工具调用。",
             "en": "parse-jsonl.ts pairs tool_use and tool_result records into Span trees. align.ts flattens the trees and compares tool-specific fingerprints in order. cli.ts emits text or JSON; server.ts supplies the local side-by-side view. The process reads history without executing the recorded calls."
+          },
+          "mobile": {
+            "light": "/assets/presentation/architecture-mobile-light.svg",
+            "dark": "/assets/presentation/architecture-mobile-dark.svg"
           }
         }
       },
@@ -140,6 +148,10 @@
           "alt": {
             "zh": "输入是会话 JSONL，输出可用于人工检查或脚本消费；JSON 与 UI 共享紧凑结果字段，不重复输出整个 commonPrefix 树。",
             "en": "Inputs are transcript JSONL files; outputs support human review or scripts. JSON and UI use the compact result fields without repeating the full commonPrefix tree."
+          },
+          "mobile": {
+            "light": "/assets/presentation/integrations-mobile-light.svg",
+            "dark": "/assets/presentation/integrations-mobile-dark.svg"
           }
         }
       }
@@ -241,5 +253,17 @@
   "footer": {
     "tag": "0.8.0 · Node.js 20+ · MIT"
   },
-  "content_version": "v0.8.0"
+  "content_version": "v0.8.0",
+  "changelog": [
+    {
+      "version": "v0.8.0",
+      "date": "2026-09-01",
+      "note": "fix: version-drift lockstep — every version-reporting surface (package.json, CLI --version, UI footer, VERSION, CHANGELOG) now advances in lockstep with the release tag, with a regression test guarding against future drift."
+    },
+    {
+      "version": "v0.7.0",
+      "date": "2026-08-24",
+      "note": "refresh: content re-verified for v0.7.0 (fix-write-multiedit-fingerprint-ignores-content — Write/MultiEdit spans now fingerprint content like Edit, so divergences between runs are no longer missed)."
+    }
+  ]
 }

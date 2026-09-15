@@ -10,7 +10,7 @@
   },
   "meta": {
     "visual_profile": "neon-particle",
-    "content_version": "0.8.0",
+    "content_version": "0.9.0",
     "demo_source": "docs/demo-results.json"
   },
   "hero": {
@@ -251,10 +251,15 @@
     }
   ],
   "footer": {
-    "tag": "0.8.0 · Node.js 20+ · MIT"
+    "tag": "0.9.0 · Node.js 20+ · MIT"
   },
-  "content_version": "v0.8.0",
+  "content_version": "v0.9.0",
   "changelog": [
+    {
+      "version": "v0.9.0",
+      "date": "2026-09-16",
+      "note": "fix: span fingerprints now discriminate full content (a divergence past the first line/60 chars of an Edit, Write, MultiEdit, Bash or TodoWrite input is no longer silently missed), non-transcript JSONL inputs fail loudly, the documented session-id argument form works, and the --ui #result payload round-trips markup exactly."
+    },
     {
       "version": "v0.8.0",
       "date": "2026-09-01",

@@ -9,7 +9,7 @@
 
 **Compare two Claude Code transcripts and locate the first difference in their tool inputs.**
 
-`v0.8.0` · `Node.js 20+` · [MIT](LICENSE)
+`v0.9.0` · `Node.js 20+` · [MIT](LICENSE)
 
 [Website](https://bisectrun.lei6393.com) · [Demo record](docs/demo-results.json)
 
@@ -54,7 +54,7 @@ Both JSONL inputs are in [test/fixtures](test/fixtures/). A [replay script](exam
 
 ## Usage
 
-Pass both transcripts to avoid scanning local session directories. Add `--ui` for the side-by-side page, using port 7331 by default or `--port` to change it. `--json` and `--ui` are mutually exclusive. With one transcript, the CLI tries to find a reference by signature.
+Pass both transcripts to avoid scanning local session directories. Add `--ui` for the side-by-side page, using port 7331 by default or `--port` to change it. `--json` and `--ui` are mutually exclusive. With one transcript, the CLI tries to find a reference by signature. Either argument may also be a bare Claude Code session id, resolved to the unique `~/.claude/projects/*/<id>.jsonl` transcript.
 
 ## Recorded demo
 

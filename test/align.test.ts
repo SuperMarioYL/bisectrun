@@ -186,3 +186,95 @@ test("identical Write and MultiEdit spans share fingerprints and align as no div
   assert.equal(spanFingerprint(m.spans.find((s) => s.name === "MultiEdit")!), spanFingerprint(m.spans.find((s) => s.name === "MultiEdit")!));
   assert.equal(align(m, m).firstDivergence, null);
 });
+
+// fix-fingerprint-truncation-collisions — the content-aware fingerprints of
+// v0.6.0/v0.7.0 were built from head() fragments (first line, first 60-80
+// chars), so the "wrong fix to the right spot" divergence they were built to
+// catch was STILL silently missed whenever the differing bytes fell past the
+// truncation — the norm for real multi-line edits and long Bash commands.
+// Every case below produced IDENTICAL fingerprints and align() reported
+// "Runs align completely — no divergence detected." on v0.8.0; the
+// fingerprint now pairs the readable head with a sha256 digest of the FULL
+// semantic key, so each case is caught. RED on revert, GREEN after.
+
+/** Build a single-span transcript invoking the given tool with the given input. */
+function singleSpanTranscript(prompt: string, tool: string, input: Record<string, unknown>): string {
+  const base = { cwd: "/repo/x", gitBranch: "main" };
+  return [
+    JSON.stringify({ parentUuid: null, uuid: "u1", type: "user", message: { role: "user", content: [{ type: "text", text: prompt }] }, timestamp: "2026-09-16T09:00:00.000Z", ...base }),
+    JSON.stringify({ parentUuid: "u1", uuid: "a1", type: "assistant", message: { role: "assistant", content: [{ type: "tool_use", id: "tu1", name: tool, input }] }, timestamp: "2026-09-16T09:00:05.000Z", ...base }),
+    JSON.stringify({ parentUuid: "a1", uuid: "u2", type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: "tu1", content: "ok", is_error: false }] }, timestamp: "2026-09-16T09:00:06.000Z", ...base }),
+  ].join("\n");
+}
+
+/** Assert that two single-span runs differing only in the named tool input
+ *  are detected as a divergence (fingerprints differ + align() finds it). */
+function assertDivergenceDetected(tool: string, failedInput: Record<string, unknown>, goodInput: Record<string, unknown>): void {
+  const failed = parseJsonlText(singleSpanTranscript("do the task", tool, failedInput));
+  const good = parseJsonlText(singleSpanTranscript("do the task", tool, goodInput));
+  assert.equal(signaturesMatch(failed.signature, good.signature), true);
+  assert.notEqual(spanFingerprint(failed.spans[0]), spanFingerprint(good.spans[0]),
+    `${tool} spans differing past the head window must have different fingerprints`);
+  const result = align(failed, good);
+  assert.notEqual(result.firstDivergence, null, `${tool} divergence past the head window must be located, not reported as "no divergence"`);
+  assert.equal(result.firstDivergence!.name, tool);
+  assert.doesNotMatch(result.reason, /no divergence/i);
+}
+
+test("Edit spans whose new_strings share line 1 but differ on line 2 diverge", () => {
+  // Same file + old_string; new_strings share the first line (and the first
+  // 60 chars) but differ on line 2 — invisible to the v0.8.0 head-based
+  // fingerprint, the canonical multi-line "wrong fix to the right spot".
+  const old_string = "function add(a, b) {\n  return a + b;\n}";
+  assertDivergenceDetected("Edit",
+    { file_path: "src/math.ts", old_string, new_string: "function add(a, b) {\n  return a - b;\n}" },
+    { file_path: "src/math.ts", old_string, new_string: "function add(a, b) {\n  return a * b;\n}" });
+});
+
+test("Write spans whose contents share line 1 but differ later diverge", () => {
+  assertDivergenceDetected("Write",
+    { file_path: "src/math.ts", content: "export const add = (a, b) => {\n  return a + b;\n};" },
+    { file_path: "src/math.ts", content: "export const add = (a, b) => {\n  return a - b;\n};" });
+});
+
+test("MultiEdit spans whose SECOND edit differs diverge", () => {
+  // JSON.stringify of the edits array is one line, so the v0.8.0 head(.., 60)
+  // saw only the beginning of the FIRST edit — the entire second edit was
+  // invisible.
+  const first = { old_string: "import { x } from \"./x\";", new_string: "import { x } from \"./x\";" };
+  assertDivergenceDetected("MultiEdit",
+    { file_path: "src/math.ts", edits: [first, { old_string: "  return a + b;", new_string: "  return a - b;" }] },
+    { file_path: "src/math.ts", edits: [first, { old_string: "  return a + b;", new_string: "  return a * b;" }] });
+});
+
+test("Bash spans with commands differing only after the first 80 chars diverge", () => {
+  assertDivergenceDetected("Bash",
+    { command: "cd /very/long/working/directory/path/that/goes/on/and/on && npx jest --config=jest.config.js --runInBand" },
+    { command: "cd /very/long/working/directory/path/that/goes/on/and/on && npx jest --config=jest.config.js --coverage" });
+});
+
+test("TodoWrite spans with same-length but different todo lists diverge", () => {
+  // v0.8.0 keyed TodoWrite on todos.length ONLY — two different 2-item plans
+  // collided. The fingerprint now digests the full serialized todo list.
+  assertDivergenceDetected("TodoWrite",
+    { todos: [{ content: "fix parser", status: "in_progress" }, { content: "run tests", status: "pending" }] },
+    { todos: [{ content: "fix aligner", status: "in_progress" }, { content: "run tests", status: "pending" }] });
+});
+
+test("behavior preservation: identical spans (any length) still share fingerprints and align as no divergence", () => {
+  // The digest is over the FULL content, so identical inputs — including
+  // multi-line and >80-char ones — still produce identical fingerprints.
+  const input = {
+    file_path: "src/math.ts",
+    old_string: "function add(a, b) {\n  return a + b;\n}",
+    new_string: "function add(a, b) {\n  return a - b;\n}",
+  };
+  const run = parseJsonlText(singleSpanTranscript("do the task", "Edit", input));
+  assert.equal(spanFingerprint(run.spans[0]), spanFingerprint(run.spans[0]));
+  const result = align(run, run);
+  assert.equal(result.firstDivergence, null);
+  assert.match(result.reason, /no divergence/i);
+
+  const bashRun = parseJsonlText(singleSpanTranscript("do the task", "Bash", { command: "cd /very/long/path && npx jest --coverage" }));
+  assert.equal(align(bashRun, bashRun).firstDivergence, null);
+});

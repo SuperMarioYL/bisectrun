@@ -14,25 +14,21 @@ export interface ServerBundle {
   goodRun: ParsedRun;
 }
 
-function spanRow(span: Span, side: "failed" | "good", divergenceId: string | null): string {
-  const isDiv = divergenceId != null && span.id === divergenceId;
-  const cls = isDiv ? "span divergence" : "span";
-  const fp = spanFingerprint(span);
-  const errFlag = span.tool_result?.is_error ? '<span class="err">error</span>' : "";
-  const depth = 0; // visual indentation handled by tree walker
-  return `<li class="${cls}" data-id="${escapeAttr(span.id)}" style="margin-left:${depth}rem">
-    <div class="name">${escapeHtml(span.name)}</div>
-    <div class="fp">${escapeHtml(fp)}</div>
-    <div class="ts">${escapeHtml(span.ts)}</div>
-    ${errFlag}
-  </li>`;
-}
-
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] as string);
 }
-function escapeAttr(s: string): string {
-  return escapeHtml(s);
+
+/**
+ * Serialize a payload for embedding inside a <script type="application/json">
+ * element. HTML entities are NOT decoded in script raw text, so wrapping
+ * JSON.stringify in escapeHtml corrupted every & < > " in the payload for any
+ * consumer reading the element's textContent (valid JSON, silently wrong
+ * strings). Escaping "<" as \u003c neutralizes the only breakout sequence
+ * ("</script>") while keeping the payload byte-identical for JSON.parse.
+ * (fix-ui-result-json-escaping)
+ */
+function jsonForScript(payload: unknown): string {
+  return JSON.stringify(payload).replace(/</g, "\\u003c");
 }
 
 function treeHtml(roots: Span[], side: "failed" | "good", divergenceId: string | null): string {
@@ -130,10 +126,10 @@ function page(result: AlignmentResult, bundle: ServerBundle): string {
     </section>
   </main>
   <footer>
-    BisectRun v0.8.0 — span-semantic bisect for coding agents ·
+    BisectRun v0.9.0 — span-semantic bisect for coding agents ·
     <code>${escapeHtml(JSON.stringify(payload).slice(0, 0))}</code>
   </footer>
-  <script id="result" type="application/json">${escapeHtml(JSON.stringify(payload))}</script>
+  <script id="result" type="application/json">${jsonForScript(payload)}</script>
 </body>
 </html>`;
 }

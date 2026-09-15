@@ -14,7 +14,7 @@
  * and stitch spans into a tree via the `parentUuid`/`uuid` record linkage.
  */
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import type { Span, RunSignature } from "./types.js";
@@ -29,6 +29,13 @@ export interface ParsedRun {
   signature: RunSignature;
   /** Total number of JSON records parsed from the transcript (before span derivation). */
   recordCount: number;
+  /**
+   * Records that look like Claude Code transcript entries (a `uuid` field
+   * and/or `type` "user"/"assistant"). A wrong-but-valid JSONL data file
+   * parses to recordCount > 0 with transcriptRecordCount === 0 and must not
+   * masquerade as an empty-but-fine transcript. (fix-parse-guard-non-transcript-jsonl)
+   */
+  transcriptRecordCount: number;
 }
 
 interface RawRecord {
@@ -75,7 +82,46 @@ function resolveInput(input: string): string {
   if (existsSync(input)) return resolve(input);
   const expanded = input.replace(/^~(?=$|\/|\\)/, homedir());
   if (existsSync(expanded)) return resolve(expanded);
+  // Last fallback: a bare Claude Code session id, resolved against
+  // ~/.claude/projects/*/. (fix-cli-session-id-argument)
+  const byId = resolveSessionId(input);
+  if (byId) return byId;
   return expanded;
+}
+
+/**
+ * Resolve a bare Claude Code session id to its transcript under
+ * ~/.claude/projects/<sanitized-cwd>/<session-id>.jsonl.
+ *
+ * Returns the absolute path when EXACTLY ONE project dir holds <id>.jsonl
+ * (session uuids are unique filenames, so ambiguity is practically
+ * impossible — and when it somehow happens, guessing is worse than the
+ * caller's existing not-found error). Returns null — keeping the caller's
+ * current behavior — when the input is not id-shaped (contains path
+ * separators), ~/.claude/projects is absent/unreadable, or no/ambiguous
+ * match exists. (fix-cli-session-id-argument)
+ */
+export function resolveSessionId(id: string, home: string = homedir()): string | null {
+  if (!id || id.includes("/") || id.includes("\\") || id.startsWith("~")) return null;
+  const projects = join(home, ".claude", "projects");
+  let entries: string[];
+  try {
+    entries = readdirSync(projects);
+  } catch {
+    // No ~/.claude/projects (or unreadable) — nothing to resolve against.
+    return null;
+  }
+  const matches: string[] = [];
+  for (const e of entries) {
+    const candidate = join(projects, e, `${id}.jsonl`);
+    try {
+      if (statSync(candidate).isFile()) matches.push(candidate);
+    } catch {
+      // Skip entries that disappeared between readdir and stat, broken
+      // symlinks, and directories named <id>.jsonl.
+    }
+  }
+  return matches.length === 1 ? resolve(matches[0]) : null;
 }
 
 /** Normalize a message's `content` field into a list of content blocks. */
@@ -115,7 +161,16 @@ export function parseJsonlFile(filePath: string): ParsedRun {
   // lines) still throws; a chat-only transcript no longer throws and align()
   // reports no divergence. (fix-silent-success-on-unparseable-transcript,
   // fix-parsejsonlfile-spans-vs-records)
-  if (run.recordCount === 0 && text.trim().length > 0) {
+  //
+  // recordCount alone still lets a wrong-but-VALID JSONL file through (any
+  // newline-delimited JSON data file parses to records but zero transcript
+  // entries), silently reporting "no divergence" for two files that are not
+  // transcripts at all. The second half of the guard gates on transcript
+  // SHAPE: a Claude Code session transcript always contains records with a
+  // uuid field and/or type "user"/"assistant" — chat-only transcripts
+  // qualify (their user/assistant records count), data JSONL does not.
+  // (fix-parse-guard-non-transcript-jsonl)
+  if (text.trim().length > 0 && (run.recordCount === 0 || run.transcriptRecordCount === 0)) {
     throw new Error(
       `no parseable transcript records in ${abs} — not a Claude Code session JSONL?`,
     );
@@ -155,8 +210,12 @@ export function buildRun(records: RawRecord[]): ParsedRun {
   let gitBranch: string | undefined;
   let prompt = "";
   let promptFound = false;
+  // Transcript-shape count: records that could only come from a Claude Code
+  // session (uuid linkage or a user/assistant turn). (fix-parse-guard-non-transcript-jsonl)
+  let transcriptRecordCount = 0;
 
   for (const r of records) {
+    if (r.uuid || r.type === "user" || r.type === "assistant") transcriptRecordCount++;
     if (r.cwd && !cwd) cwd = r.cwd;
     if (r.gitBranch && !gitBranch) gitBranch = r.gitBranch;
 
@@ -247,7 +306,7 @@ export function buildRun(records: RawRecord[]): ParsedRun {
     spanCount: spans.length,
   };
 
-  return { spans, roots, signature, recordCount: records.length };
+  return { spans, roots, signature, recordCount: records.length, transcriptRecordCount };
 }
 
 /** Flatten a span tree into chronological (depth-first) order. */

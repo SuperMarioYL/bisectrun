@@ -9,7 +9,7 @@
 
 **对照两次 Claude Code 会话，定位工具输入首次出现差异的位置。**
 
-`v0.8.0` · `Node.js 20+` · [MIT](LICENSE)
+`v0.9.0` · `Node.js 20+` · [MIT](LICENSE)
 
 [Website](https://bisectrun.lei6393.com) · [Demo record](docs/demo-results.json)
 
@@ -54,7 +54,7 @@ node dist/cli.js test/fixtures/failed-session.jsonl test/fixtures/good-session.j
 
 ## 使用
 
-显式传入失败与参考会话可避免扫描本机会话目录。加 `--ui` 启动并排页面，默认端口 7331，可用 `--port` 更改；`--json` 与 `--ui` 互斥。只给一个会话时会按签名寻找参考记录。
+显式传入失败与参考会话可避免扫描本机会话目录。加 `--ui` 启动并排页面，默认端口 7331，可用 `--port` 更改；`--json` 与 `--ui` 互斥。只给一个会话时会按签名寻找参考记录。两个参数也都可以直接传 Claude Code 会话 id，会解析到唯一的 `~/.claude/projects/*/<id>.jsonl` 会话文件。
 
 ## 实际 Demo
 

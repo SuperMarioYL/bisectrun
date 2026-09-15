@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { writeFileSync, mkdtempSync, rmSync, mkdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -12,11 +12,17 @@ const cliPath = join(root, "src", "cli.ts");
 const failedFixture = join(here, "fixtures/failed-session.jsonl");
 const goodFixture = join(here, "fixtures/good-session.jsonl");
 
-/** Run the CLI as a subprocess (via tsx) and capture stdout/stderr/status. */
-function runCli(args: string[]): { stdout: string; stderr: string; status: number | null } {
+/** Run the CLI as a subprocess (via tsx) and capture stdout/stderr/status.
+ *  `env` defaults to this process's env; tests override HOME to point the
+ *  CLI's ~/.claude lookup at a seeded temp home. */
+function runCli(
+  args: string[],
+  env: NodeJS.ProcessEnv = process.env,
+): { stdout: string; stderr: string; status: number | null } {
   const res = spawnSync(process.execPath, ["--import", "tsx", cliPath, ...args], {
     encoding: "utf8",
     cwd: root,
+    env,
   });
   return { stdout: res.stdout ?? "", stderr: res.stderr ?? "", status: res.status };
 }
@@ -152,4 +158,50 @@ test("--json omits commonPrefix (mirrors /result.json, no quadratic bloat)", () 
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// fix-cli-session-id-argument — the CLI argument help used to promise "path
+// (or ~/.claude-project id)" while no code resolved an id, so the documented
+// input form died with a raw ENOENT naming a file the user never typed.
+// resolveSessionId (src/parse-jsonl.ts) now resolves a bare session id
+// against ~/.claude/projects/*/, so `bisect-run <session-id> <good>` works.
+test("a bare Claude Code session id resolves to ~/.claude/projects/<dir>/<id>.jsonl", () => {
+  // Seed a temp HOME with one project dir holding the failed fixture under
+  // a session-id filename; os.homedir() honors $HOME on POSIX.
+  const home = mkdtempSync(join(tmpdir(), "bisect-run-clihome-"));
+  const projectDir = join(home, ".claude", "projects", "-home-alice-myapp");
+  mkdirSync(projectDir, { recursive: true });
+  const sessionId = "0ea1a2b3-c4d5-4e6f-8a9b-0c1d2e3f4a5b";
+  writeFileSync(join(projectDir, `${sessionId}.jsonl`), readFileSync(failedFixture, "utf8"));
+  try {
+    const res = runCli([sessionId, goodFixture], { ...process.env, HOME: home });
+    // The failed fixture diverges from the good fixture: normal headless
+    // run, exit 0, first-divergence output — resolved via the session id.
+    assert.equal(res.status, 0, `expected exit 0, got ${res.status}; stderr=${res.stderr}`);
+    assert.match(res.stdout, /BisectRun — first divergence/);
+    assert.match(res.stdout, /matched depth: 1/);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("an unresolvable session id keeps the existing ENOENT behavior (no silent guessing)", () => {
+  const home = mkdtempSync(join(tmpdir(), "bisect-run-clihome-"));
+  try {
+    const res = runCli(["no-such-session-id", goodFixture], { ...process.env, HOME: home });
+    assert.equal(res.status, 1);
+    // The error names the ORIGINAL input, exactly as before the fix.
+    assert.match(res.stderr, /no such file or directory/);
+    assert.match(res.stderr, /no-such-session-id/);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("--help describes the session-id form the CLI actually supports", () => {
+  const res = runCli(["--help"]);
+  assert.equal(res.status, 0);
+  assert.match(res.stdout, /path or Claude Code session id/);
+  // The old text promised a "~/.claude-project id" form that never worked.
+  assert.doesNotMatch(res.stdout, /~\/\.claude-project id/);
 });

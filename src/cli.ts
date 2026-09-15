@@ -22,10 +22,10 @@ const program = new Command();
 program
   .name("bisect-run")
   .description("git-bisect for coding agents — locate the first divergent span between two agent runs.")
-  .argument("<failed>", "path (or ~/.claude-project id) to the failing session transcript")
+  .argument("<failed>", "path or Claude Code session id to the failing session transcript")
   .argument(
     "[good]",
-    "path (or ~/.claude-project id) to the passing session transcript; if omitted, auto-resolved from ~/.bisect-run/refs",
+    "path or Claude Code session id to the passing session transcript; if omitted, auto-resolved from ~/.bisect-run/refs",
   )
   .option("--ui", "start the web diff UI instead of printing to stdout")
   .option("-p, --port <number>", "port for the web UI", "7331")
@@ -34,7 +34,7 @@ program
     "--json",
     "emit machine-readable AlignmentResult JSON to stdout (CI mode; opt-in exit codes; mutually exclusive with --ui)",
   )
-  .version("0.8.0")
+  .version("0.9.0")
   .action(
     (failed: string, good: string | undefined, opts: { ui: boolean; port: string; color: boolean; json: boolean }) => {
       // --json and --ui are two different output modes and cannot both hold.

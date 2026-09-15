@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, rmSync, mkdirSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { parseJsonlText, parseJsonlFile, flatten } from "../src/parse-jsonl.js";
+import { parseJsonlText, parseJsonlFile, flatten, resolveSessionId } from "../src/parse-jsonl.js";
 import { align } from "../src/align.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -114,5 +114,71 @@ test("parseJsonlFile does NOT throw on a chat-only transcript (records present, 
     assert.match(result.reason, /no divergence/i);
   } finally {
     rmSync(tmp, { force: true });
+  }
+});
+
+// fix-parse-guard-non-transcript-jsonl — a wrong-but-VALID JSONL file (any
+// newline-delimited JSON data file) parses to recordCount > 0 with zero
+// transcript-shaped records, and before this fix it flowed into align() and
+// silently reported "Runs align completely — no divergence detected." with
+// exit 0 — the exact "pointed at the wrong file" failure mode the v0.3.0
+// guard was built to prevent, surviving it because that guard only fired
+// when ZERO JSON lines parsed. The guard now also gates on transcript SHAPE
+// (records with a uuid field and/or type "user"/"assistant").
+test("parseJsonlFile throws on a valid-JSONL data file (records parse, none are transcript entries)", () => {
+  const tmp = join(tmpdir(), `bisect-run-data-${process.pid}-${Date.now()}.jsonl`);
+  // Valid JSON lines — but no uuid and no user/assistant type: an .jsonl
+  // dataset, not a Claude Code session transcript.
+  writeFileSync(tmp, '{"a": 1, "ts": "x"}\n{"b": 2}\n');
+  try {
+    // Before the fix: no throw, spanCount 0, and two such files aligned to a
+    // silent exit-0 "no divergence". RED on v0.8.0, GREEN after.
+    assert.throws(
+      () => parseJsonlFile(tmp),
+      /no parseable transcript records in .*not a Claude Code session JSONL/,
+    );
+  } finally {
+    rmSync(tmp, { force: true });
+  }
+});
+
+test("the transcript-shape count distinguishes data files from chat-only transcripts", () => {
+  // A data file: records parse, none are transcript-shaped.
+  const data = parseJsonlText('{"a": 1}\n{"b": 2}\n');
+  assert.equal(data.recordCount, 2);
+  assert.equal(data.transcriptRecordCount, 0);
+  // A chat-only transcript: records parse AND are transcript-shaped (the
+  // v0.5.0 protection — chat-only transcripts must NOT throw).
+  const chatOnly = parseJsonlText(
+    [
+      '{"parentUuid":null,"uuid":"u1-x","type":"user","message":{"role":"user","content":[{"type":"text","text":"hi"}]},"timestamp":"2026-09-16T09:00:00.000Z","cwd":"/r","gitBranch":"main"}',
+      '{"parentUuid":"u1-x","uuid":"a1-x","type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"hello"}]},"timestamp":"2026-09-16T09:00:05.000Z","cwd":"/r","gitBranch":"main"}',
+    ].join("\n"),
+  );
+  assert.equal(chatOnly.recordCount, 2);
+  assert.equal(chatOnly.transcriptRecordCount, 2);
+});
+
+// fix-cli-session-id-argument — resolveSessionId resolves a bare Claude Code
+// session id against ~/.claude/projects/*/ so the CLI argument form its own
+// --help promises ("path or Claude Code session id") actually works instead
+// of dying with a raw ENOENT naming a file the user never typed.
+test("resolveSessionId resolves a bare session id to the unique matching project transcript", () => {
+  const home = mkdtempSync(join(tmpdir(), "bisect-run-sid-"));
+  const projectDir = join(home, ".claude", "projects", "-repo-x");
+  mkdirSync(projectDir, { recursive: true });
+  const transcript = join(projectDir, "sess-abc123.jsonl");
+  writeFileSync(transcript, failedText);
+  try {
+    assert.equal(resolveSessionId("sess-abc123", home), transcript);
+    // Unknown id: nothing to resolve — caller keeps its existing behavior.
+    assert.equal(resolveSessionId("sess-nosuch", home), null);
+    // Not id-shaped (path separators): id resolution must not hijack paths.
+    assert.equal(resolveSessionId("sub/sess-abc123", home), null);
+    assert.equal(resolveSessionId("", home), null);
+    // A missing ~/.claude/projects degrades to "nothing to resolve".
+    assert.equal(resolveSessionId("sess-abc123", join(home, "no-such-home")), null);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
   }
 });

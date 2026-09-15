@@ -5,6 +5,49 @@ All notable changes to **BisectRun** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-09-16
+
+### Fixed
+
+- **Span fingerprints now discriminate the full tool input, not its first
+  line / first 60-80 chars** (`src/align.ts`). The content-aware fingerprints
+  of v0.6.0/v0.7.0 were built from `head()` fragments, so two runs whose
+  divergent span differed only past the truncation — the norm for real
+  multi-line Edit/Write/MultiEdit content, >80-char Bash commands, and
+  same-length TodoWrite lists — produced IDENTICAL fingerprints and
+  `align()` silently reported "Runs align completely — no divergence
+  detected", the exact false-negative on the core bisect verdict those fixes
+  were built to prevent (reproduced four ways on v0.8.0). Every
+  content-bearing fingerprint (Bash, Edit, Write, MultiEdit, Task, TodoWrite,
+  WebSearch, and the default arm) now pairs its readable head with a short
+  sha256 digest of the full semantic key, so a divergence is caught wherever
+  the difference falls. Strictly more discriminating and non-breaking:
+  identical inputs still match.
+- **A wrong-but-valid JSONL file fails loudly instead of silently reporting
+  "no divergence"** (`src/parse-jsonl.ts`). The v0.3.0 garbage guard fired
+  only when zero JSON lines parsed, so pointing bisect-run at any
+  newline-delimited JSON data file (recordCount > 0, zero transcript
+  entries) flowed into `align()` and exited 0 with "Runs align completely".
+  The guard now also gates on transcript shape (records with a `uuid` field
+  and/or type `user`/`assistant`): data JSONL throws "not a Claude Code
+  session JSONL?", while chat-only transcripts still parse cleanly (the
+  v0.5.0 protection is intact).
+- **The documented session-id argument form works** (`src/cli.ts`,
+  `src/parse-jsonl.ts`). The CLI help promised "path (or ~/.claude-project
+  id)" but no code resolved an id, so passing one died with a raw ENOENT
+  naming a file the user never typed. A bare session id now resolves to the
+  unique `~/.claude/projects/*/<id>.jsonl` transcript, and the help text
+  names the form accurately ("path or Claude Code session id"). Unresolvable
+  ids keep the existing not-found behavior.
+- **The `--ui` page's embedded `#result` payload round-trips exactly**
+  (`src/server.ts`). The payload was HTML-escaped inside a
+  `<script type="application/json">` element, but HTML entities are never
+  decoded in script raw text — every `& < > "` in prompts/fingerprints was
+  silently corrupted for any consumer reading the element's textContent.
+  The payload is now embedded with `<` escaped as `\u003c` (breakout-safe,
+  byte-identical for `JSON.parse`). The dead v0.1.0 `spanRow` renderer
+  (superseded by `treeHtml`, zero call sites) is removed from the same file.
+
 ## [0.8.0] - 2026-09-01
 
 ### Fixed
@@ -159,6 +202,7 @@ No new features and no stack/runtime change in this release.
   local hono server and opens a browser rendering the two derived span trees
   side-by-side with the first divergence span highlighted.
 
+[0.9.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.9.0
 [0.8.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.8.0
 [0.7.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.7.0
 [0.6.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.6.0

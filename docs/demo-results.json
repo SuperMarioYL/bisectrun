@@ -1,5 +1,5 @@
 {
-  "version": "0.8.0",
+  "version": "0.9.0",
   "scope": "Offline comparison of the shipped synthetic Claude-style transcripts; no agent is executed and divergence is not causal proof.",
   "inputs": [
     {

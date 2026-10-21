@@ -9,7 +9,7 @@
 
 **Compare two Claude Code transcripts and locate the first difference in their tool inputs.**
 
-`v0.9.0` · `Node.js 20+` · [MIT](LICENSE)
+`v0.10.0` · `Node.js 20+` · [MIT](LICENSE)
 
 [Website](https://bisectrun.lei6393.com) · [Demo record](docs/demo-results.json)
 
@@ -80,8 +80,8 @@ FAILED divergence: Edit [2026-07-22T09:00:12.000Z] — src/math.ts
 GOOD    divergence: Edit [2026-07-22T08:00:12.000Z] — src/math.ts
 
 First divergence: same tool "Edit" but with different input —
-  failed: Edit:src/math.ts|return a + b;|return a - b;
-  good:   Edit:src/math.ts|return a - b;|return a - b;
+  failed: Edit:src/math.ts|return a + b;|return a - b;#f54405620b86
+  good:   Edit:src/math.ts|return a - b;|return a - b;#de7b34e31de9
 ────────────────────────────────────────────────────────────
 divergent tool_use input:
 {
@@ -103,7 +103,7 @@ $ node dist/cli.js test/fixtures/failed-session.jsonl test/fixtures/good-session
 {
   "signaturesMatch": true,
   "matchedDepth": 1,
-  "reason": "First divergence: same tool \"Edit\" but with different input —\n  failed: Edit:src/math.ts|return a + b;|return a - b;\n  good:   Edit:src/math.ts|return a - b;|return a - b;",
+  "reason": "First divergence: same tool \"Edit\" but with different input —\n  failed: Edit:src/math.ts|return a + b;|return a - b;#f54405620b86\n  good:   Edit:src/math.ts|return a - b;|return a - b;#de7b34e31de9",
   "failed": {
     "cwd": "/home/alice/myapp",
     "gitBranch": "main",

@@ -1,6 +1,6 @@
 {
   "name": "bisectrun",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Compare Claude Code transcripts and locate the first differing tool-input fingerprint, with JSON output and a local diff UI.",
   "type": "module",
   "bin": {
@@ -16,7 +16,8 @@
     "build": "tsc -p tsconfig.json",
     "test": "node --test --import tsx test/*.test.ts",
     "dev": "tsx src/cli.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "demo:capture": "DEMO_CAPTURE=1 node --test --import tsx test/demo.test.ts"
   },
   "engines": {
     "node": ">=20"

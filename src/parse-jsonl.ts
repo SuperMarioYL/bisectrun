@@ -293,6 +293,32 @@ export function buildRun(records: RawRecord[]): ParsedRun {
     }
   }
 
+  // A transcript's parentUuid chain is expected to be acyclic, but a malformed
+  // or hand-merged file can form a cycle (A.parentUuid=B, B.parentUuid=A). Both
+  // spans then get a non-null parent, so `roots` is empty and flatten() — plus
+  // the --ui renderer's treeHtml walk — recurses forever, killing the process
+  // with "Maximum call stack size exceeded" (and pre-empting the
+  // transcript-shape guard in parseJsonlFile, which never gets to report the
+  // file). Detach the first span whose parent chain revisits an ancestor, and
+  // drop it from its former parent's children, restoring the acyclic invariant
+  // once for every consumer. Well-formed transcripts never trigger this: their
+  // chains are acyclic, so the walk terminates without a repeat.
+  // (fix-cyclic-parentuuid-stack-overflow)
+  for (const span of spans) {
+    const seen = new Set<string>([span.id]);
+    let p = span.parent;
+    while (p) {
+      if (seen.has(p)) {
+        const formerParent = spanByToolUseId.get(span.parent as string);
+        span.parent = null;
+        if (formerParent) formerParent.children = formerParent.children.filter((c) => c.id !== span.id);
+        break;
+      }
+      seen.add(p);
+      p = spanByToolUseId.get(p)?.parent ?? null;
+    }
+  }
+
   // Sort each parent's children by timestamp for a stable tree.
   for (const span of spans) {
     span.children.sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0));

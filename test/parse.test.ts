@@ -182,3 +182,48 @@ test("resolveSessionId resolves a bare session id to the unique matching project
     rmSync(home, { recursive: true, force: true });
   }
 });
+
+// fix-cyclic-parentuuid-stack-overflow — buildRun stitches span parents by
+// walking the record parentUuid chain with no cycle detection. A JSONL whose
+// records reference each other (A.parentUuid=B, B.parentUuid=A), each carrying
+// one tool_use, gives both spans a non-null parent, leaves `roots` empty, and
+// sends flatten() (and the --ui renderer's treeHtml walk) into unbounded
+// recursion: the process died with "Maximum call stack size exceeded" (exit 1)
+// on v0.9.0 instead of the clean not-a-transcript diagnostic the parse guards
+// promise for malformed input. The parent stitch now breaks cycles, so the
+// span tree stays acyclic for every consumer. RED on v0.9.0, GREEN after.
+function cyclicTranscript(): string {
+  const base = { cwd: "/repo/x", gitBranch: "main" };
+  return [
+    JSON.stringify({ parentUuid: "a2", uuid: "a1", type: "assistant", message: { role: "assistant", content: [{ type: "tool_use", id: "tu1", name: "Bash", input: { command: "a" } }] }, timestamp: "2026-09-16T09:00:01.000Z", ...base }),
+    JSON.stringify({ parentUuid: "a1", uuid: "a2", type: "assistant", message: { role: "assistant", content: [{ type: "tool_use", id: "tu2", name: "Bash", input: { command: "b" } }] }, timestamp: "2026-09-16T09:00:02.000Z", ...base }),
+  ].join("\n");
+}
+
+test("a transcript whose records reference each other in parentUuid parses into an acyclic tree", () => {
+  const run = parseJsonlText(cyclicTranscript());
+  assert.equal(run.spans.length, 2);
+
+  // Every span is reachable from the roots and appears exactly once — the tree
+  // is acyclic, so flatten() terminates instead of overflowing the stack.
+  const flat = flatten(run.roots);
+  assert.deepEqual(
+    flat.map((s) => s.id).sort(),
+    ["tu1", "tu2"],
+  );
+  assert.equal(flat.length, run.spans.length);
+
+  // The alignment path (which falls back to the raw span list when roots is
+  // empty) must also survive.
+  assert.equal(align(run, run).firstDivergence, null);
+});
+
+test("a well-formed transcript keeps its parent/child shape after the cycle guard", () => {
+  // Behavior preservation: the cycle-break pass must never fire on a valid
+  // transcript, so the fixture tree is unchanged.
+  const failed = parseJsonlText(failedText);
+  const edit = failed.spans.find((s) => s.name === "Edit")!;
+  assert.equal(edit.parent, "toolu_f1");
+  assert.equal(failed.roots.length, 1);
+  assert.equal(flatten(failed.roots).length, failed.spans.length);
+});

@@ -278,3 +278,90 @@ test("behavior preservation: identical spans (any length) still share fingerprin
   const bashRun = parseJsonlText(singleSpanTranscript("do the task", "Bash", { command: "cd /very/long/path && npx jest --coverage" }));
   assert.equal(align(bashRun, bashRun).firstDivergence, null);
 });
+
+// fix-fingerprint-ignores-remaining-input-fields — v0.9.0 added a full-content
+// digest to the arms it touched but left Read/Glob/Grep/WebFetch/Task keyed on
+// a hand-picked subset of their input, and left Edit keyed on
+// file_path+old_string+new_string only. Every unkeyed field is invisible: two
+// runs whose divergent span differs ONLY in that field produced IDENTICAL
+// fingerprints and align() reported "Runs align completely — no divergence
+// detected" (with --json that is exit 2, i.e. a CI gate reads "nothing to
+// bisect"). Reproduced at the CLI on the shipped v0.9.0 build for every case
+// below, and confirmed on real Claude Code transcripts (3 fingerprint groups
+// over 303 real spans that the current fingerprint calls identical while the
+// inputs differ — fields: Read offset/limit). RED on the v0.9.0 code, GREEN
+// after the full-semantic-key digest.
+
+test("Read spans differing only in offset diverge", () => {
+  assertDivergenceDetected("Read",
+    { file_path: "src/parse-jsonl.ts", offset: 1, limit: 50 },
+    { file_path: "src/parse-jsonl.ts", offset: 900, limit: 50 });
+});
+
+test("Read spans differing only in limit diverge", () => {
+  assertDivergenceDetected("Read",
+    { file_path: "src/parse-jsonl.ts", limit: 20 },
+    { file_path: "src/parse-jsonl.ts", limit: 2000 });
+});
+
+test("Glob spans differing only in path diverge", () => {
+  assertDivergenceDetected("Glob",
+    { pattern: "**/*.ts", path: "src" },
+    { pattern: "**/*.ts", path: "vendor" });
+});
+
+test("Grep spans differing only in glob diverge", () => {
+  assertDivergenceDetected("Grep",
+    { pattern: "fingerprint", path: "src", glob: "*.ts" },
+    { pattern: "fingerprint", path: "src", glob: "*.py" });
+});
+
+test("Grep spans differing only in -i / output_mode diverge", () => {
+  assertDivergenceDetected("Grep",
+    { pattern: "fingerprint", path: "src", "-i": true, output_mode: "content" },
+    { pattern: "fingerprint", path: "src", "-i": false, output_mode: "files_with_matches" });
+});
+
+test("WebFetch spans differing only in prompt diverge", () => {
+  assertDivergenceDetected("WebFetch",
+    { url: "https://example.com/release", prompt: "extract the price" },
+    { url: "https://example.com/release", prompt: "extract the author" });
+});
+
+test("Task spans with the same description but different prompt diverge", () => {
+  // The description is the readable head (and stays excluded from the key as
+  // presentation); the prompt is the actual instruction and must be keyed.
+  assertDivergenceDetected("Task",
+    { description: "Review the code", prompt: "Review the parser for off-by-one bugs", subagent_type: "general-purpose" },
+    { description: "Review the code", prompt: "Review the aligner for false negatives", subagent_type: "general-purpose" });
+});
+
+test("Edit spans differing only in replace_all diverge", () => {
+  assertDivergenceDetected("Edit",
+    { file_path: "src/math.ts", old_string: "return a + b;", new_string: "return a - b;", replace_all: true },
+    { file_path: "src/math.ts", old_string: "return a + b;", new_string: "return a - b;", replace_all: false });
+});
+
+test("behavior preservation: Read/Glob/Grep/WebFetch/Task/Edit still match on identical inputs", () => {
+  // The new key is a superset of every field the v0.9.0 code keyed on, so
+  // identical inputs must still collide as "the same step".
+  const cases: Array<[string, Record<string, unknown>]> = [
+    ["Read", { file_path: "src/math.ts", offset: 1, limit: 50 }],
+    ["Glob", { pattern: "**/*.ts", path: "src" }],
+    ["Grep", { pattern: "fingerprint", path: "src", glob: "*.ts", "-i": true, output_mode: "content" }],
+    ["WebFetch", { url: "https://example.com/release", prompt: "extract the price" }],
+    ["Task", { description: "Review the code", prompt: "Review the parser", subagent_type: "general-purpose" }],
+    ["Edit", { file_path: "src/math.ts", old_string: "a", new_string: "b", replace_all: true }],
+    ["Bash", { command: "npm test", description: "run the suite" }],
+  ];
+  for (const [tool, input] of cases) {
+    const run = parseJsonlText(singleSpanTranscript("do the task", tool, input));
+    const other = parseJsonlText(singleSpanTranscript("do the task", tool, input));
+    assert.equal(spanFingerprint(run.spans[0]), spanFingerprint(other.spans[0]), `${tool} identical inputs must match`);
+    assert.equal(align(run, other).firstDivergence, null, `${tool} identical runs must align`);
+  }
+});
+
+test("Bash spans whose commands differ still diverge (digest superset check)", () => {
+  assertDivergenceDetected("Bash", { command: "npm test" }, { command: "npm run build" });
+});

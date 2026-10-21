@@ -5,6 +5,52 @@ All notable changes to **BisectRun** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-10-21
+
+### Fixed
+
+- **Every span fingerprint now keys on the tool's full input, not a hand-picked
+  subset of it** (`src/align.ts`). The v0.9.0 digest covered the arms it touched
+  but left `Read` keyed on `file_path` alone, `Glob` on `pattern` alone, `Grep`
+  on `pattern|path`, `WebFetch` on `url`, `Task` on `description`, and `Edit` on
+  `file_path+old_string+new_string`. Any field outside that subset was invisible,
+  so two runs whose divergent span differed only in it produced IDENTICAL
+  fingerprints and `align()` reported "Runs align completely — no divergence
+  detected" — with `--json` that is exit 2, i.e. a CI gate read "nothing to
+  bisect" for a genuinely divergent pair. Reproduced eight ways at the CLI on
+  v0.9.0 (Read offset/limit, Glob path, Grep glob and `-i`/`output_mode`,
+  WebFetch prompt, Edit `replace_all`, Task prompt) and confirmed on real
+  transcripts: across 303 spans from 8 same-task Claude Code sessions, 3
+  fingerprint groups the shipped code called identical had differing inputs, and
+  the differing fields were exactly `Read`'s `offset`/`limit`. Every arm now
+  pairs its readable head with a sha256 digest of the tool's full semantic key
+  (canonicalized, so key order cannot fake a divergence) minus the
+  presentation-only `description` label on Bash/Task. The key is a superset of
+  every field the shipped code keyed on, so identical inputs still match and no
+  divergence the shipped code detected is lost.
+- **The published demo capture is regenerated from the shipped binary and can
+  no longer go stale silently** (`docs/demo-results.json`, `web/site.json`,
+  `README.md`, `README.zh-CN.md`, `test/demo.test.ts`). The v0.9.0 commit bumped
+  the demo record's `version` field to 0.9.0 without re-running the demo
+  commands, so all five surfaces that publish the capture — the record linked
+  from both READMEs, the live site's "Actual demo output" section, and the
+  fenced `text` blocks in both READMEs — kept showing the pre-v0.9.0
+  fingerprints (no `#digest`), output the shipped binary cannot produce, while
+  declaring version 0.9.0. All five are re-captured, and `test/demo.test.ts` now
+  runs both demo commands and asserts every surface equals the live output
+  (plus that the record's version and input hashes match), so the drift cannot
+  recur. `npm run demo:capture` re-captures every surface in one command.
+- **A cyclic `parentUuid` chain no longer crashes the parser**
+  (`src/parse-jsonl.ts`). The parent stitch assumed an acyclic chain; a
+  malformed or hand-merged transcript whose records reference each other
+  (`A.parentUuid=B`, `B.parentUuid=A`) left every span with a non-null parent,
+  so `roots` was empty and `flatten()` — plus the `--ui` renderer's tree walk —
+  recursed forever: the process died with `Maximum call stack size exceeded`
+  instead of the clean "not a Claude Code session JSONL?" diagnostic, which it
+  also pre-empted. The stitch now detaches the first span whose parent chain
+  revisits an ancestor, restoring the acyclic invariant once for every consumer.
+  Well-formed transcripts are untouched.
+
 ## [0.9.0] - 2026-09-16
 
 ### Fixed
@@ -202,6 +248,7 @@ No new features and no stack/runtime change in this release.
   local hono server and opens a browser rendering the two derived span trees
   side-by-side with the first divergence span highlighted.
 
+[0.10.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.10.0
 [0.9.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.9.0
 [0.8.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.8.0
 [0.7.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.7.0

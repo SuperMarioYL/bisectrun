@@ -34,7 +34,7 @@ program
     "--json",
     "emit machine-readable AlignmentResult JSON to stdout (CI mode; opt-in exit codes; mutually exclusive with --ui)",
   )
-  .version("0.10.0")
+  .version("0.11.0")
   .action(
     (failed: string, good: string | undefined, opts: { ui: boolean; port: string; color: boolean; json: boolean }) => {
       // --json and --ui are two different output modes and cannot both hold.
@@ -48,8 +48,10 @@ program
       try {
         const failedRun = parseJsonlFile(failed);
         let goodRun: ParsedRun;
+        let goodSource: string;
         if (good) {
           goodRun = parseJsonlFile(good);
+          goodSource = good;
         } else {
           // Auto-resolve a reference run for this task signature, capturing
           // from ~/.claude/projects/<sanitized-cwd>/ if no cached ref exists.
@@ -60,7 +62,17 @@ program
           }
           console.error(`bisect-run: ${ref.reason}`);
           goodRun = parseJsonlFile(ref.referencePath);
+          goodSource = ref.referencePath;
         }
+        // A run that parsed but produced no tool_use span has nothing to
+        // locate. Comparing one against a real run used to fabricate "good run
+        // continued past the failed run with an extra step" (and two such runs
+        // aligned cleanly), a plausible verdict from an input with no step to
+        // compare. The parse layer must keep accepting chat-only transcripts
+        // (v0.5.0), so the precondition lives here, where the verdict and the
+        // exit-code contract belong. (fix-zero-span-run-fabricated-verdict)
+        assertComparable(failedRun, `the failed run (${failed})`);
+        assertComparable(goodRun, `the good run (${goodSource})`);
         const result = align(failedRun, goodRun);
 
         if (opts.ui) {
@@ -111,6 +123,21 @@ program
       }
     },
   );
+
+/**
+ * Refuse to compare a run that has no tool_use span: there is no step to
+ * locate, so any "divergence" would be manufactured by the list comparison.
+ * Thrown inside the action's try/catch, so it surfaces as
+ * `bisect-run: <message>` and exit 1 in every output mode.
+ * (fix-zero-span-run-fabricated-verdict)
+ */
+function assertComparable(run: ParsedRun, source: string): void {
+  if (run.spans.length === 0) {
+    throw new Error(
+      `no tool calls to compare in ${source} — ${run.recordCount} record(s) parsed, 0 tool_use spans; nothing to bisect`,
+    );
+  }
+}
 
 function paint(color: boolean, code: string, text: string): string {
   if (!color) return text;

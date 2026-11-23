@@ -170,7 +170,17 @@ export function parseJsonlFile(filePath: string): ParsedRun {
   // uuid field and/or type "user"/"assistant" — chat-only transcripts
   // qualify (their user/assistant records count), data JSONL does not.
   // (fix-parse-guard-non-transcript-jsonl)
-  if (text.trim().length > 0 && (run.recordCount === 0 || run.transcriptRecordCount === 0)) {
+  //
+  // The guard applies to a BLANK input too. It used to be gated on
+  // `text.trim().length > 0`, so a 0-byte or whitespace-only file (an
+  // interrupted capture, a `touch`ed placeholder, a rotated log) skipped both
+  // record-count checks and came back as a valid zero-record run; two such
+  // runs then aligned to "Runs align completely — no divergence detected."
+  // with exit 0 (--json exit 2), a clean verdict computed from no data at all.
+  // A blank file is not an empty-but-valid transcript — a real session always
+  // writes records — so it throws like any other zero-record input.
+  // (fix-zero-record-transcript-clean-verdict)
+  if (run.recordCount === 0 || run.transcriptRecordCount === 0) {
     throw new Error(
       `no parseable transcript records in ${abs} — not a Claude Code session JSONL?`,
     );
@@ -219,8 +229,13 @@ export function buildRun(records: RawRecord[]): ParsedRun {
     if (r.cwd && !cwd) cwd = r.cwd;
     if (r.gitBranch && !gitBranch) gitBranch = r.gitBranch;
 
-    // The first textual user message is treated as the task prompt.
-    if (!promptFound && r.type === "user" && r.message) {
+    // The first textual user message is treated as the task prompt. Records
+    // flagged `isMeta` are system-injected (local-command caveats, command
+    // breadcrumbs), not the user's instruction: taking one as the prompt made
+    // the same task compare as two different tasks (signaturesMatch false)
+    // and parked the autocapture reference under a different signature hash.
+    // (fix-task-prompt-includes-meta-records)
+    if (!promptFound && !r.isMeta && r.type === "user" && r.message) {
       const blocks = asBlocks(r.message.content);
       const textBlock = blocks.find((b) => b.type === "text" && typeof b.text === "string" && b.text.trim());
       if (textBlock?.text) {

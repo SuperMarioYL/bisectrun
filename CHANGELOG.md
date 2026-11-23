@@ -5,6 +5,58 @@ All notable changes to **BisectRun** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-11-24
+
+### Fixed
+
+- **A blank transcript can no longer produce a clean "no divergence" verdict**
+  (`src/parse-jsonl.ts`). The whole-file guard was gated on
+  `text.trim().length > 0`, so a 0-byte or whitespace-only file — what an
+  interrupted capture, a `touch`ed placeholder or a rotated log leaves behind —
+  skipped both record-count checks and was returned as a valid zero-record run.
+  Two such files aligned to "Runs align completely — no divergence detected."
+  with exit 0 (`--json` exit 2), a clean verdict computed from no data. The
+  guard now throws "no parseable transcript records in <path> — not a Claude
+  Code session JSONL?" for a blank file exactly as it does for garbage, while
+  chat-only transcripts (records, no tool calls) still parse and malformed
+  tails are still tolerated per line.
+- **A run with no tool calls is refused instead of being compared**
+  (`src/cli.ts`). A transcript that parsed but carried no `tool_use` block was
+  fed to `align()` like any other run, so comparing it against a real reference
+  reported "First divergence: good run continued past the failed run with an
+  extra \"Bash\" step." and exited 0 (the `--ui` page rendered an empty failed
+  pane with that step highlighted); two such runs aligned cleanly. There is no
+  step to locate, so the CLI now prints "no tool calls to compare in the failed
+  run (<n> record(s) parsed, 0 tool_use spans); nothing to bisect" and exits 1
+  in every mode, before starting a server. Parse-level acceptance of chat-only
+  transcripts is unchanged.
+- **The task prompt skips `isMeta` records** (`src/parse-jsonl.ts`). The parser
+  modelled the transcript's `isMeta` flag but never read it, so a
+  system-injected user record (a local-command caveat or command breadcrumb)
+  became the task prompt. Two runs of the same task then reported "Run
+  signatures differ (cwd / branch / prompt) — these may not be the same task.",
+  and automatic reference lookup hashed a different signature on every run. The
+  first non-meta textual user record now supplies the prompt.
+- **The published fingerprint limitation matches the shipped code**
+  (`README.md`, `README.zh-CN.md`, `web/site.json`). The docs said fingerprints
+  are bounded tool-field prefixes, which stopped being true at v0.9.0 and
+  v0.10.0: each fingerprint keeps a bounded readable head for display and
+  derives its discrimination key from a digest of the full tool input. The
+  limitation now says so, and `test/docs.test.ts` keeps the old wording from
+  returning.
+
+### Changed
+
+- **Every version surface moves to 0.11.0, and the live site joins the lockstep
+  guard** (`VERSION`, `package.json`, `package-lock.json`, `src/cli.ts`,
+  `src/server.ts`, `CHANGELOG.md`, `docs/demo-results.json`, `web/site.json`,
+  `test/version.test.ts`). `web/site.json` declares the version twice — a
+  `v`-prefixed top-level `content_version` and a bare `meta.content_version` —
+  and was the only version-bearing surface no test guarded, so the live page
+  could advertise a version the repository no longer shipped. Both fields (and
+  `footer.tag` / the site changelog) advance with the release, and
+  `test/version.test.ts` asserts them against `VERSION` in their own formats.
+
 ## [0.10.0] - 2026-10-21
 
 ### Fixed
@@ -248,6 +300,7 @@ No new features and no stack/runtime change in this release.
   local hono server and opens a browser rendering the two derived span trees
   side-by-side with the first divergence span highlighted.
 
+[0.11.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.11.0
 [0.10.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.10.0
 [0.9.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.9.0
 [0.8.0]: https://github.com/SuperMarioYL/bisectrun/releases/tag/v0.8.0

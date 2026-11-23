@@ -10,7 +10,7 @@
   },
   "meta": {
     "visual_profile": "neon-particle",
-    "content_version": "0.10.0",
+    "content_version": "0.11.0",
     "demo_source": "docs/demo-results.json"
   },
   "hero": {
@@ -163,8 +163,18 @@
           "en": "JSON exit codes"
         },
         "body": {
-          "zh": "0 为找到差异，2 为完全对齐，1 为错误；不要将 2 当作解析失败。",
-          "en": "0 means a divergence, 2 means complete alignment, and 1 means an error; do not treat 2 as a parse failure."
+          "zh": "0 为找到差异，2 为完全对齐，1 为错误（含无法比较的输入）；不要将 2 当作解析失败。",
+          "en": "0 means a divergence, 2 means complete alignment, and 1 means an error (including inputs that cannot be compared); do not treat 2 as a parse failure."
+        }
+      },
+      {
+        "title": {
+          "zh": "没有可比较的步骤",
+          "en": "Nothing to compare"
+        },
+        "body": {
+          "zh": "解析不到任何会话记录，或会话中没有任何工具调用时，会以退出码 1 报错，而不是给出“无差异”的结论。",
+          "en": "An input that yields no transcript records, or a transcript with no tool calls, exits 1 with an error instead of reporting \"no divergence\"."
         }
       }
     ]
@@ -238,8 +248,8 @@
   },
   "limitations": [
     {
-      "zh": "指纹使用工具字段的有限前缀，不是完整语义等价或因果归因。",
-      "en": "Fingerprints use bounded tool-field prefixes, not full semantic equivalence or causal attribution."
+      "zh": "每个指纹保留一段用于展示的有限可读头部，判别键来自完整工具输入的摘要（不含 Bash/Task description 这类纯展示字段）；语义等价与因果归因仍不在范围内。",
+      "en": "Each fingerprint keeps a bounded readable head for display and derives its discrimination key from a digest of the full tool input (minus presentation-only labels such as Bash/Task description); semantic equivalence and causal attribution remain out of scope."
     },
     {
       "zh": "主要对齐依据是工具输入；结果内容不同不一定触发差异。",
@@ -251,10 +261,15 @@
     }
   ],
   "footer": {
-    "tag": "0.10.0 · Node.js 20+ · MIT"
+    "tag": "0.11.0 · Node.js 20+ · MIT"
   },
-  "content_version": "v0.10.0",
+  "content_version": "v0.11.0",
   "changelog": [
+    {
+      "version": "v0.11.0",
+      "date": "2026-11-24",
+      "note": "fix: a blank transcript or a transcript with no tool calls now fails loudly instead of reporting a clean \"no divergence\"; the task prompt skips system-injected isMeta records so the same task no longer looks like two different tasks; the published fingerprint limitation now matches the full-input digest; and the site's declared version is in the release lockstep guard."
+    },
     {
       "version": "v0.10.0",
       "date": "2026-10-21",

@@ -9,7 +9,7 @@
 
 **Compare two Claude Code transcripts and locate the first difference in their tool inputs.**
 
-`v0.10.0` · `Node.js 20+` · [MIT](LICENSE)
+`v0.11.0` · `Node.js 20+` · [MIT](LICENSE)
 
 [Website](https://bisectrun.lei6393.com) · [Demo record](docs/demo-results.json)
 
@@ -172,13 +172,13 @@ Inputs are transcript JSONL files; outputs support human review or scripts. JSON
 
 ## Configuration
 
-Task signatures combine cwd, git branch and normalized prompt. Auto references live under `~/.bisect-run/refs`; candidates need at least one span, a result for every span, and no is_error result. JSON mode exits 0 when a divergence is found, 2 when fully aligned, and 1 on errors. Text mode retains its original exit behavior.
+Task signatures combine cwd, git branch and normalized prompt. Auto references live under `~/.bisect-run/refs`; candidates need at least one span, a result for every span, and no is_error result. JSON mode exits 0 when a divergence is found, 2 when fully aligned, and 1 on errors. Text mode retains its original exit behavior. An input that yields no transcript records, or a transcript with no tool calls, is reported as an error (exit 1) instead of a verdict — there is nothing to compare.
 
 ## Roadmap and scope
 
 Explicit comparison, heuristic reference discovery, text/JSON reports and local UI are implemented. Subtree alignment for parallel branches, more transcript formats and deeper semantic interpretation remain future directions.
 
-- Fingerprints use bounded tool-field prefixes, not full semantic equivalence or causal attribution.
+- Each fingerprint keeps a bounded readable head for display and derives its discrimination key from a digest of the full tool input (minus presentation-only labels such as Bash/Task `description`); semantic equivalence and causal attribution remain out of scope.
 - Alignment primarily compares tool inputs; different result content need not trigger divergence.
 - Success in automatic reference selection is a heuristic, not a substitute for tests.
 

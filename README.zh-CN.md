@@ -9,7 +9,7 @@
 
 **对照两次 Claude Code 会话，定位工具输入首次出现差异的位置。**
 
-`v0.10.0` · `Node.js 20+` · [MIT](LICENSE)
+`v0.11.0` · `Node.js 20+` · [MIT](LICENSE)
 
 [Website](https://bisectrun.lei6393.com) · [Demo record](docs/demo-results.json)
 
@@ -172,13 +172,13 @@ $ node dist/cli.js test/fixtures/failed-session.jsonl test/fixtures/good-session
 
 ## 配置
 
-任务签名是 cwd、git branch 和规范化 prompt。自动参考目录为 `~/.bisect-run/refs`；候选会话需至少一个 Span、每个 Span 都有结果且没有 is_error。JSON 模式退出码：找到差异为 0，完全对齐为 2，错误为 1。文本模式保留原有退出行为。
+任务签名是 cwd、git branch 和规范化 prompt。自动参考目录为 `~/.bisect-run/refs`；候选会话需至少一个 Span、每个 Span 都有结果且没有 is_error。JSON 模式退出码：找到差异为 0，完全对齐为 2，错误为 1。文本模式保留原有退出行为。解析不到任何会话记录，或会话中没有任何工具调用时，会按错误处理（退出码 1），而不是给出结论——因为没有任何步骤可以比较。
 
 ## 路线图与范围
 
 已实现显式对照、启发式参考定位、文字/JSON 输出和本地 UI。并行分支的子树对齐、更多会话格式与更深入的语义解释仍是后续方向。
 
-- 指纹使用工具字段的有限前缀，不是完整语义等价或因果归因。
+- 每个指纹保留一段用于展示的有限可读头部，判别键来自完整工具输入的摘要（不含 Bash/Task `description` 这类纯展示字段）；语义等价与因果归因仍不在范围内。
 - 主要对齐依据是工具输入；结果内容不同不一定触发差异。
 - 自动参考选择中的成功是启发式判断，不代替测试结果。
 

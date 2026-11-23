@@ -1,6 +1,6 @@
 {
   "name": "bisectrun",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Compare Claude Code transcripts and locate the first differing tool-input fingerprint, with JSON output and a local diff UI.",
   "type": "module",
   "bin": {

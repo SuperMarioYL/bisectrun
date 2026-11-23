@@ -205,3 +205,84 @@ test("--help describes the session-id form the CLI actually supports", () => {
   // The old text promised a "~/.claude-project id" form that never worked.
   assert.doesNotMatch(res.stdout, /~\/\.claude-project id/);
 });
+
+// fix-zero-span-run-fabricated-verdict — a transcript that parsed but carries
+// no tool_use block used to be compared like any other run: against a real
+// reference it produced "First divergence: good run continued past the failed
+// run with an extra \"Bash\" step." and exit 0 (with --ui, an empty failed
+// pane and that step highlighted), and two such runs aligned cleanly. There is
+// no tool call to locate, so the CLI now refuses to compare and exits 1 in
+// every mode; the parse layer still accepts chat-only transcripts (v0.5.0).
+function chatOnlyTranscript(): string {
+  const base = { cwd: "/home/alice/myapp", gitBranch: "main" };
+  return [
+    JSON.stringify({
+      parentUuid: null,
+      uuid: "u1-c",
+      type: "user",
+      message: { role: "user", content: [{ type: "text", text: "Fix the failing test in src/math.ts" }] },
+      timestamp: "2026-07-22T09:00:00.000Z",
+      ...base,
+    }),
+    JSON.stringify({
+      parentUuid: "u1-c",
+      uuid: "a1-c",
+      type: "assistant",
+      message: { role: "assistant", content: [{ type: "text", text: "Let me think about this approach." }] },
+      timestamp: "2026-07-22T09:00:05.000Z",
+      ...base,
+    }),
+  ].join("\n");
+}
+
+test("a parsed run with zero tool calls is refused, not reported as a divergence", () => {
+  const dir = mkdtempSync(join(tmpdir(), "bisectrun-chatonly-"));
+  const failedPath = join(dir, "chat-only.jsonl");
+  try {
+    writeFileSync(failedPath, chatOnlyTranscript());
+    const res = runCli([failedPath, goodFixture]);
+    // RED on v0.10.0: exit 0 with a fabricated "good run continued past ...".
+    assert.equal(res.status, 1, `expected exit 1, got ${res.status}; stdout=${res.stdout}`);
+    assert.match(res.stderr, /no tool calls to compare/);
+    assert.match(res.stderr, /the failed run/);
+    assert.match(res.stderr, /2 record\(s\) parsed, 0 tool_use spans/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("--json also refuses a zero-span run (no verdict JSON, exit 1)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "bisectrun-chatonly-"));
+  const failedPath = join(dir, "chat-only.jsonl");
+  try {
+    writeFileSync(failedPath, chatOnlyTranscript());
+    const res = runCli([failedPath, goodFixture, "--json"]);
+    assert.equal(res.status, 1, `expected exit 1, got ${res.status}; stdout=${res.stdout}`);
+    assert.match(res.stderr, /no tool calls to compare/);
+    // No machine-readable verdict is emitted for an input that cannot be compared.
+    assert.equal(res.stdout.trim(), "");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// fix-zero-record-transcript-clean-verdict — two 0-byte files used to align to
+// "Runs align completely — no divergence detected." with exit 0 (--json exit 2),
+// a clean verdict from zero data. The empty file now fails the same whole-file
+// guard as garbage input.
+test("two empty transcripts fail loudly instead of reporting no divergence", () => {
+  const dir = mkdtempSync(join(tmpdir(), "bisectrun-empty-"));
+  const emptyA = join(dir, "a.jsonl");
+  const emptyB = join(dir, "b.jsonl");
+  try {
+    writeFileSync(emptyA, "");
+    writeFileSync(emptyB, "");
+    const res = runCli([emptyA, emptyB]);
+    // RED on v0.10.0: exit 0, "Runs align completely — no divergence detected."
+    assert.equal(res.status, 1, `expected exit 1, got ${res.status}; stdout=${res.stdout}`);
+    assert.match(res.stderr, /no parseable transcript records/);
+    assert.doesNotMatch(res.stdout, /no divergence detected/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

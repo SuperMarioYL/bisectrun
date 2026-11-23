@@ -76,3 +76,23 @@ test("CHANGELOG top entry is in lockstep with VERSION", () => {
     `CHANGELOG top header [${m![1]}] != VERSION "${expected}"`,
   );
 });
+
+// fix-version-lockstep-v0-11-0 — web/site.json is the one live, version-bearing
+// surface the v0.8.0 lockstep guard never covered: it declares the shipped
+// version twice in two different formats (`content_version: "vX.Y.Z"` at top
+// level, `meta.content_version: "X.Y.Z"`). The Pages build publishes it at
+// https://bisectrun.lei6393.com, so a bump that misses it ships a page
+// advertising a version the repo no longer is. Each field keeps its own format.
+test("web/site.json content versions are in lockstep with VERSION", () => {
+  const site = JSON.parse(readFileSync(join(root, "web", "site.json"), "utf8"));
+  assert.equal(
+    site.content_version,
+    `v${expected}`,
+    `web/site.json content_version "${site.content_version}" != "v${expected}"`,
+  );
+  assert.equal(
+    site.meta?.content_version,
+    expected,
+    `web/site.json meta.content_version "${site.meta?.content_version}" != "${expected}"`,
+  );
+});
